@@ -1,15 +1,23 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime
-import os, json
+import os, json, time
 
 app = Flask(__name__)
-app.secret_key = "zondi_super_secret_2026_encrypted"
+# Render matches fallback values safely if environment variables exist
+app.secret_key = os.environ.get("SECRET_KEY", "zondi_super_secret_2026_encrypted")
 
+# --- UNIFIED CENTRAL TELEMETRY CORE STORES ---
 locations = {}
 radio_messages = []
 user_channels = {}  # username -> channel
-os.makedirs("evidence", exist_ok=True)
+
+# Ensure storage directories exist in runtime path
+EVIDENCE_FOLDER = "evidence"
+RADIO_FOLDER = os.path.join("static", "radio")
+os.makedirs(EVIDENCE_FOLDER, exist_ok=True)
+os.makedirs(RADIO_FOLDER, exist_ok=True)
 os.makedirs("static", exist_ok=True)
 
 USERS_FILE = "users.json"
@@ -28,6 +36,8 @@ def load_users():
 def save_users(users):
     with open(USERS_FILE, 'w') as f: json.dump(users, f, indent=2)
 
+
+# --- AUTHENTICATION INFRASTRUCTURE ENGINE ---
 @app.route('/')
 def home():
     if 'user' in session:
@@ -38,9 +48,15 @@ def home():
 def login():
     if request.method == 'GET':
         return render_template('login.html')
-    user = request.form.get('username').strip()
+   
+    username_input = request.form.get('username')
+    if not username_input:
+        return render_template('login.html', error="❌ Username field missing")
+       
+    user = username_input.strip()
     pw = request.form.get('password')
     users = load_users()
+   
     if user in users and check_password_hash(users[user]['password'], pw):
         session['user'] = user
         session['role'] = users[user]['role']
@@ -51,15 +67,21 @@ def login():
 def register():
     if request.method == 'GET':
         return render_template('register.html')
-    username = request.form.get('username').strip()
-    email = request.form.get('email').strip()
+   
+    username_input = request.form.get('username')
+    email_input = request.form.get('email')
+   
+    username = username_input.strip() if username_input else ""
+    email = email_input.strip() if email_input else ""
     password = request.form.get('password')
     role = request.form.get('role')
     users = load_users()
+   
     if username in users:
         return render_template('register.html', error="User already exists")
-    if len(password) < 6:
+    if not password or len(password) < 6:
         return render_template('register.html', error="Password must be 6+ characters")
+       
     users[username] = {
         "password": generate_password_hash(password),
         "role": role,
@@ -68,136 +90,153 @@ def register():
     }
     save_users(users)
     print(f"✅ NEW USER REGISTERED: {username} as {role} - ENCRYPTED")
-    return render_template('login.html', success=f"✅ Account {username} created! Login with encrypted password")
+    return render_template('login.html', success=f"✅ Account {username} created!")
 
 @app.route('/forgot', methods=['GET','POST'])
 def forgot():
     if request.method == 'GET':
         return render_template('forgot.html')
-    username = request.form.get('username').strip()
+       
+    username_input = request.form.get('username')
+    username = username_input.strip() if username_input else ""
     new_pw = request.form.get('new_password')
-    confirm = request.form.get('confirm_password')
+   
+    # Matching your frontend input field mappings perfectly
     users = load_users()
     if username not in users:
         return render_template('forgot.html', error="Username not found")
-    if new_pw!= confirm:
-        return render_template('forgot.html', error="Passwords don't match")
-    if len(new_pw) < 6:
+    if not new_pw or len(new_pw) < 6:
         return render_template('forgot.html', error="Password too short")
+       
     users[username]['password'] = generate_password_hash(new_pw)
     save_users(users)
     print(f"🔑 PASSWORD RESET FOR {username}")
-    return render_template('login.html', success="✅ Password reset! Login with new encrypted password")
+    return render_template('login.html', success="✅ Password reset successfully!")
 
+
+# --- ROUTING SYSTEM CROSSWAY DISPATCHER ---
 @app.route('/dashboard')
 def dashboard():
     if 'user' not in session:
         return redirect('/login')
     role = session.get('role')
     user = session.get('user')
+   
     if role == 'client':
         return render_template('client.html', user=user)
     elif role == 'patrol':
         return render_template('hq.html', locations=locations, user=user)
     else:
-        files = os.listdir('evidence')
+        files = os.listdir(EVIDENCE_FOLDER)
         users = load_users()
         return render_template('dev.html', locations=locations, files=files, user=user, all_users=users)
 
-#... KEEP YOUR WORKING ROUTES...
+
+# --- COMMUNICATIONS ENGINE & STREAM CHANNELS ---
 @app.route('/update_location', methods=['POST'])
 def update_location():
     data = request.json
-    locations[data.get('user')] = {"lat": data.get('lat'), "lng": data.get('lng'), "time": datetime.now().strftime("%H:%M:%S")}
+    if data:
+        locations[data.get('user')] = {
+            "lat": data.get('lat'),
+            "lng": data.get('lng'),
+            "time": datetime.now().strftime("%H:%M:%S")
+        }
     return jsonify({"ok": True})
 
 @app.route('/trigger', methods=['POST'])
+@app.route('/api/radio/panic', methods=['POST'])
 def trigger():
-    user = session.get('user','unknown')
-    now = datetime.now().strftime("%H:%M:%S")
-    radio_messages.append({"user": user, "text": f"🚨🚨 PANIC ALERT FROM {user.upper()} - NEEDS IMMEDIATE RESPONSE! 🚨🚨", "type": "panic", "time": now, "file": None})
-    return jsonify({"status":"PANIC RECEIVED"})
+    user = session.get('user', 'unknown')
+    now_time = datetime.now().strftime("%H:%M:%S")
+   
+    msg = {
+        "user": user,
+        "text": f"🚨🚨 PANIC ALERT FROM {user.upper()} - NEEDS IMMEDIATE RESPONSE! 🚨🚨",
+        "type": "CLIENT_SOS",
+        "status": "EMERGENCY_SOS",
+        "time": int(time.time()),
+        "audioUrl": None
+    }
+    radio_messages.append(msg)
+    return jsonify({"status": "PANIC RECEIVED", "ok": True})
 
 @app.route('/upload_evidence', methods=['POST'])
 def upload_evidence():
-    user = session.get('user','unknown')
+    user = session.get('user', 'unknown')
     if 'video' in request.files:
         f = request.files['video']
         name = f"ZONDI_{user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
-        f.save(os.path.join("evidence", name))
+        f.save(os.path.join(EVIDENCE_FOLDER, name))
         return jsonify({"saved": name})
-    return jsonify({"error":"no video"})
+    return jsonify({"error": "no video"})
 
-@app.route('/send_radio', methods=['POST'])
-def send_radio():
-    user = session.get('user','unknown')
-    text = request.form.get('text','')
-    now = datetime.now().strftime("%H:%M:%S")
-    filename = None
-    if 'audio' in request.files:
-        af = request.files['audio']
-        filename = f"RADIO_{user}_{now.replace(':','')}.webm"
-        af.save(os.path.join("evidence", filename))
-    cur_ch = user_channels.get(user, 1)
-    radio_messages.append({"user": user, "text": text, "type": "audio" if filename else "text", "file": filename, "channel": cur_ch, "time": now})
-    return jsonify({"ok": True})
-
-user_channels = {}
-
-@app.route('/set_channel/<int:ch>')
-def set_channel(ch):
-    user_channels[session.get('user','guest')] = ch
-    return 'ok'
-
-@app.route('/get_radio')
-def get_radio():
-    u = session.get('user','guest')
-    ch = user_channels.get(u, 1)
-    filtered = [r for r in radio_messages if r.get('channel',1)==ch]
-    return jsonify(filtered[-20:])
-@app.route('/get_locations')
-def get_locations(): return jsonify(locations)
-
-@app.route('/evidence/<path:filename>')
-def evidence_file(filename):
-    return send_from_directory("evidence", filename)
-
-@app.route('/logout')
-def logout(): session.clear(); return redirect('/login')
-
-import os, time
-from flask import request, jsonify
-from werkzeug.utils import secure_filename
-
-UPLOAD_FOLDER = 'static/radio'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-radio_messages = []
-
+@app.route('/upload_audio', methods=['POST'])
 @app.route('/api/radio/upload', methods=['POST'])
 def radio_upload():
-    file = request.files['audio']
-    channel = request.form.get('channel', 'ch1')
-    user = request.form.get('user', 'HQ')
+    # Supports both singular 'audio' and multi-part 'audio[]' names seamlessly
+    file_key = 'audio' if 'audio' in request.files else 'audio[]'
+    if file_key not in request.files:
+        return jsonify({"error": "No audio file payload found"}), 400
+      
+    file = request.files[file_key]
+    channel = request.form.get('channel', '1')
+    user = request.form.get('user', session.get('user', 'HQ-DISPATCH'))
+   
     filename = f"{int(time.time()*1000)}_{secure_filename(file.filename)}"
-    path = os.path.join(UPLOAD_FOLDER, filename)
+    path = os.path.join(RADIO_FOLDER, filename)
     file.save(path)
-    msg = {'audioUrl': f'/{UPLOAD_FOLDER}/{filename}', 'channel': channel, 'user': user, 'time': int(time.time())}
+   
+    msg = {
+        'audioUrl': f'/static/radio/{filename}',
+        'channel': channel,
+        'user': user,
+        'time': int(time.time()),
+        'type': 'audio'
+    }
     radio_messages.append(msg)
     return jsonify(msg)
 
 @app.route('/api/radio/feed')
+@app.route('/get_radio')
 def radio_feed():
-    channel = request.args.get('channel','ch1')
-    if channel == 'ch_all':
+    u = session.get('user', 'guest')
+    # Unified channel catcher for parameters
+    channel = request.args.get('channel', str(user_channels.get(u, 1)))
+   
+    if channel == 'ch_all' or channel == 'all':
         return jsonify(radio_messages[-30:])
-    filtered = [m for m in radio_messages if m['channel']==channel or m['channel']=='ch_all']
+       
+    filtered = [m for m in radio_messages if str(m.get('channel')) == str(channel)]
     return jsonify(filtered[-30:])
+
+@app.route('/get_locations')
+def get_locations():
+    return jsonify(locations)
+
+@app.route('/evidence/<path:filename>')
+def evidence_file(filename):
+    return send_from_directory(EVIDENCE_FOLDER, filename)
 
 @app.route('/static/radio/<filename>')
 def serve_radio(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    return send_from_directory(RADIO_FOLDER, filename)
 
+@app.route('/set_channel/<int:ch>')
+def set_channel(ch):
+    user_channels[session.get('user', 'guest')] = ch
+    return 'ok'
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
+
+# --- SERVER RUNTIME ALLOCATION ---
 if __name__ == '__main__':
     load_users()
-    print("ZPS V4 - ENCRYPTED AUTH READY")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("ZPS V4 - ENCRYPTED CORES READY FOR DEPLOYMENT")
+    # Clean environmental assignment values ensure smooth port assignments on cloud providers
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
