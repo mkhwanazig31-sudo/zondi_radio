@@ -55,14 +55,21 @@ const statusEl=document.getElementById('status');
 const channelSel=document.getElementById('channelSel');
 
 channelSel.onchange=e=>{
-currentChannel=e.target.value;
-document.getElementById('chNum').innerText=e.target.value=='ch_all'?'ALL':e.target.value.replace('ch','');
-lastCount=0;
-fetchFeed();
+    currentChannel=e.target.value;
+    document.getElementById('chNum').innerText=e.target.value=='ch_all'?'ALL':e.target.value.replace('ch','');
+    lastCount=0;
+   
+    // --- CRUCIAL SOUND UNLOCK FIX ---
+    // Creates a silent audio snippet linked to a user gesture.
+    // This officially tells the phone browser it is allowed to play radio sounds later!
+    let unlockAudio = new Audio();
+    unlockAudio.play().catch(() => {});
+   
+    fetchFeed();
 };
 
 async function fetchFeed(){
-let res=await fetch(`/get_audios?channel=${currentChannel}`);
+let res=await fetch(`/api/radio/feed?channel=${currentChannel}`);
 let msgs=await res.json();
 if(msgs.length>lastCount && lastCount!=0){
   let newest=msgs[msgs.length-1];
@@ -74,12 +81,12 @@ if(msgs.length>lastCount && lastCount!=0){
 }
 lastCount=msgs.length;
 logEl.innerHTML='';
-msgs.slice().reverse().forEach(m=>{
-  let div=document.createElement('div');
-  div.className='bubble';
-  div.innerHTML=`<span>🔊 ${m.user} • ${new Date(m.time*1000).toLocaleTimeString()}</span><audio controls src="${m.audioUrl}" style="width:90px;height:25px"></audio>`;
-  logEl.appendChild(div);
-});
+ msgs.slice().reverse().forEach(m=>{
+        let div=document.createElement('div');
+        div.className='bubble';
+        div.innerHTML=`<span><b>${m.user}</b> • ${new Date(m.time*1000).toLocaleTimeString()}</span><br><audio controls src="${m.audioUrl}" style="width:90px;height:25px;"></audio>`;
+        logEl.appendChild(div);
+    });
 }
 setInterval(fetchFeed,1200);
 fetchFeed();
@@ -96,7 +103,7 @@ mediaRecorder.onstop=async()=>{
   fd.append('audio',blob,'tx.webm');
   fd.append('channel',currentChannel);
   fd.append('user','ZPS-'+Math.floor(Math.random()*89+10));
-  await fetch('/upload_audio',{method:'POST',body:fd});
+  await fetch('/api/radio/upload', {method: 'POST',body:fd});
   statusEl.innerText='IDLE';
   fetchFeed();
 };
