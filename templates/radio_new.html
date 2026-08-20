@@ -1,31 +1,278 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZONDI RADIO</title>
-<style>
-body{background:#000;color:#0f0;font-family:monospace;margin:0;padding:10px}
-.ch-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
-.ch{padding:12px;border:2px solid #0f0;text-align:center;background:#111}
-.ch.active{background:#0f0;color:#000}
-#log{height:55vh;overflow:auto;border:1px solid #0f0;padding:10px}
-#ptt{width:100%;padding:25px;background:#900;color:#fff;border:none;font-size:20px;margin-top:10px}
-#ptt.rec{background:red}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zondi Radio - Comms</title>
+    <style>
+        body {
+            background-color: #0b0c10;
+            color: #ffffff;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            margin: 0;
+            padding: 12px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .radio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #1f2833;
+            border-left: 5px solid #ff8c00;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        .radio-title {
+            font-weight: bold;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+        .status-card {
+            background: #151a22;
+            border: 1px solid #232d38;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .channel-label {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff8c00;
+            margin: 0 0 8px 0;
+            letter-spacing: 1px;
+        }
+        .telemetry-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .badge {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            font-family: monospace;
+        }
+        .badge-status { background-color: #ff8c00; color: #000; }
+        .badge-link { background-color: #2e7d32; color: #fff; }
+
+        /* Incident Feed Interface */
+        .feed-container {
+            background-color: #11161d;
+            border: 1px solid #232d38;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            flex-grow: 1;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .feed-item {
+            background-color: #1c232d;
+            border-left: 4px solid #2ecc71;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+        .feed-meta {
+            display: flex;
+            justify-content: space-between;
+            color: #8b9bb4;
+            font-size: 10px;
+        }
+        .audio-wrapper {
+            margin-top: 4px;
+        }
+        audio {
+            width: 100%;
+            height: 30px;
+        }
+
+        /* Push-To-Talk Control Layout */
+        .ptt-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 15px 0;
+            gap: 10px;
+        }
+        .ptt-circle-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9f1c 0%, #ff6b6b 100%);
+            border: 5px solid #ffffff;
+            box-shadow: 0 0 20px rgba(255, 159, 28, 0.4);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 36px;
+            outline: none;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .ptt-circle-btn:active {
+            transform: scale(0.94);
+            background: #e60000;
+            box-shadow: 0 0 35px rgba(230, 0, 0, 0.8);
+        }
+        .ptt-instruction {
+            font-family: monospace;
+            font-size: 11px;
+            color: #8b9bb4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dev-footer {
+            text-align: center;
+            background: #11161d;
+            border: 1px solid #1f2833;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 11px;
+            color: #657786;
+            margin-top: auto;
+        }
+        .dev-highlight { color: #ff8c00; font-weight: bold; text-decoration: none; }
+    </style>
 </head>
 <body>
-<div>ZONDI RADIO <span id="cur">CH 1</span></div>
-<div class="ch-grid" id="chs"></div>
-<div id="log"></div>
-<button id="ptt">HOLD TO TALK - hold 2 sec</button>
-<script>
-let curCh=1,rec,chunks=[]
-for(let i=1;i<=10;i++){let d=document.createElement('div');d.className='ch'+(i==1?' active':'');d.innerText='CH'+i;d.onclick=()=>{document.querySelectorAll('.ch').forEach(c=>c.classList.remove('active'));d.classList.add('active');curCh=i;document.getElementById('cur').innerText='CH '+i;fetch('/set_channel/'+i)};document.getElementById('chs').appendChild(d)}
-async function load(){let r=await fetch('/get_radio');let j=await r.json();document.getElementById('log').innerHTML=j.map(m=>`<div><b>${m.user}</b> [${m.time}]<br>${m.file?`<audio controls src="/evidence/${m.file}" style="width:100%"></audio>`:''} ${m.text}</div>`).reverse().join('')}
-setInterval(load,1500);load()
-let p=document.getElementById('ptt')
-p.onmousedown=p.ontouchstart=async(e)=>{e.preventDefault();chunks=[];let s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s,{mimeType:'audio/webm;codecs=opus'});rec.ondataavailable=e=>{chunks.push(e.data)};rec.start();p.classList.add('rec');p.innerText='RECORDING...'}
-p.onmouseup=p.ontouchend=e=>{e.preventDefault();if(!rec)return;rec.stop();p.classList.remove('rec');p.innerText='HOLD TO TALK - hold 2 sec';rec.onstop=async()=>{let b=new Blob(chunks,{type:'audio/webm'});let fd=new FormData();fd.append('audio',b,'radio.webm');await fetch('/send_radio',{method:'POST',body:fd});load()}}
-</script>
-</body>
-</html>
+
+    <!-- 1. HEADER BRANDING -->
+    <div class="radio-header">
+        <span class="radio-title">ZONDI RADIO</span>
+        <span class="badge badge-link">🌐 NET_OK</span>
+    </div>
+
+    <!-- 2. CHANNEL STATUS INTERFACE -->
+    <div class="status-card">
+        <h2 class="channel-label">ZONDI RADIO CH 1</h2>
+        <div class="telemetry-row">
+            <span class="badge badge-status" id="statusBadge">IDLE</span>
+        </div>
+    </div>
+
+    <!-- 3. LIVE MONITOR FEED -->
+    <div class="feed-container" id="logEl">
+        <!-- Audio transmissions populate here automatically -->
+    </div>
+
+    <!-- 4. TRANSMISSION BROADCAST CONTAINER -->
+    <div class="ptt-wrapper">
+        <button id="pttBtn" onmousedown="startTx()" onmouseup="stopTx()" ontouchstart="startTx()" ontouchend="stopTx()" class="ptt-circle-btn">
+            🎙️
+        </button>
+        <span class="ptt-instruction">HOLD TO TALK - hold 2 sec</span>
+    </div>
+
+    <!-- 5. SIGNATURE DISPATCH FOOTER -->
+    <div class="dev-footer">
+        Designed & Developed by <a href="#" class="dev-highlight">Mkhwanazi</a>
+        <br>
+        <span style="font-size: 10px; color: #444; display: inline-block; margin-top: 4px;">Engine: Spark | © 2026 ZPS</span>
+    </div>
+
+    <!-- RELEVENT TELEMETRY SCRIPT PIPELINES -->
+    <script>
+        let mediaRecorder;
+        let chunks = [];
+        let currentChannel = "1"; // Defaulting to Channel 1
+        const logEl = document.getElementById('logEl');
+        const statusBadge = document.getElementById('statusBadge');
+        const pttBtn = document.getElementById('pttBtn');
+
+        // Automatic Feed Stream Poller Loop (Syncing directly to backend arrays)
+        async function fetchFeed() {
+            try {
+                let res = await fetch(`/api/radio/feed?channel=${currentChannel}`);
+                let msgs = await res.json();
+               
+                logEl.innerHTML = '';
+                msgs.slice().reverse().forEach(m => {
+                    let div = document.createElement('div');
+                    div.className = 'feed-item';
+                   
+                    if (m.audioUrl) {
+                        div.innerHTML = `
+                            <div class="feed-meta">
+                                <span><b>${m.user || 'Radio Node'}</b> • RX BROADCAST</span>
+                                <span>${new Date(m.time * 1000).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="audio-wrapper">
+                                <audio controls src="${m.audioUrl}"></audio>
+                            </div>
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            <div class="feed-meta">
+                                <span><b>${m.user || 'Radio Node'}</b></span>
+                                <span>${new Date().toLocaleTimeString()}</span>
+                            </div>
+                            <div>${m.text || 'Signal telemetry ping...'}</div>
+                        `;
+                    }
+                    logEl.appendChild(div);
+                });
+            } catch (err) {
+                console.log("Background stream polling exception handled silently.");
+            }
+        }
+
+        // Hardware Microphone Capturing Process
+        async function startTx() {
+            chunks = []; // Reset buffers cleanly to avoid sound block file corruptions
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+               
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+               
+                mediaRecorder.onstop = async () => {
+                    statusBadge.innerText = 'SENDING...';
+                    statusBadge.style.backgroundColor = '#3498db';
+                   
+                    let blob = new Blob(chunks, { type: 'audio/webm' });
+                    let fd = new FormData();
+                    // Appending matching backend keys arrays
+                    fd.append('audio[]', blob, 'radio_tx.webm');
+                    fd.append('channel', currentChannel);
+                    fd.append('user', 'RADIO-NODE-' + Math.floor(Math.random() * 89 + 10));
+                   
+                    await fetch('/api/radio/upload', { method: 'POST', body: fd });
+                   
+                    statusBadge.innerText = 'IDLE';
+                    statusBadge.style.backgroundColor = '#ff8c00';
+                    fetchFeed();
+                };
+               
+                mediaRecorder.start();
+                statusBadge.innerText = 'TRANSMITTING 🔴';
+                statusBadge.style.backgroundColor = '#e60000';
+                pttBtn.style.boxShadow = '0 0 35px #e60000';
+            } catch (err) {
+                console.error("Audio recording authorization blocked by browser context:", err);
+                statusBadge.innerText = 'MIC_ERR';
+            }
+        }
+
+        function stopTx() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
