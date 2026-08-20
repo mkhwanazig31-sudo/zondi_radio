@@ -1,0 +1,24 @@
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>ZPS Forgot</title>
+<style>body{background:#000;color:#FFD700;font-family:Arial;text-align:center;padding:15px}.box{border:3px solid #FFD700;padding:20px;border-radius:15px;max-width:380px;margin:auto;background:#111}input{width:90%;padding:12px;margin:8px;border:2px solid #FFD700;background:#fff;color:#000;border-radius:8px}button{width:95%;padding:14px;background:red;color:#fff;font-weight:bold;border:none;border-radius:10px}</style></head><body>
+<img src="/static/logo.png" style="width:120px;border:2px solid #FFD700;border-radius:15px"><h2>RESET PASSWORD</h2>
+<div class="box">
+{% if error %}<p style="color:red">{{error}}</p>{% endif %}
+<form method="POST">
+<input name="username" placeholder="Your Username" required>
+<input name="new_password" type="password" placeholder="New Password" required>
+<input name="confirm_password" type="password" placeholder="Confirm New Password" required>
+<button type="submit">RESET & ENCRYPT NEW PASSWORD 🔑</button>
+</form>
+<p><a href="/login" style="color:cyan">Back to Login</a></p>
+</div>
+
+<!-- DESIGNER CREDIT -->
+<div style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,0.9);border:1.5px solid #FFD700;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 0 12px rgba(255,215,0,0.5)">
+<img src="/static/logo.png" style="width:28px;height:28px;border-radius:50%;border:1px solid #FFD700">
+<div style="text-align:left;line-height:1.15">
+<div style="color:#fff;font-size:9px">Designed & Developed by <b style="color:#FFD700">Mkhwanazi</b></div>
+<div style="color:#FFD700;font-size:7.5px">Engine: Spark | © 2026 ZPS</div>
+</div>
+</div>
+
+</body></html>

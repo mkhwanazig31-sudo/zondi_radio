@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZONDI RADIO</title>
+<style>
+body{background:#000;color:#0f0;font-family:monospace;margin:0;padding:10px}
+.ch-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.ch{padding:12px;border:2px solid #0f0;text-align:center;background:#111}
+.ch.active{background:#0f0;color:#000}
+#log{height:55vh;overflow:auto;border:1px solid #0f0;padding:10px}
+#ptt{width:100%;padding:25px;background:#900;color:#fff;border:none;font-size:20px;margin-top:10px}
+#ptt.rec{background:red}
+</style>
+</head>
+<body>
+<div>ZONDI RADIO <span id="cur">CH 1</span></div>
+<div class="ch-grid" id="chs"></div>
+<div id="log"></div>
+<button id="ptt">HOLD TO TALK - hold 2 sec</button>
+<script>
+let curCh=1,rec,chunks=[]
+for(let i=1;i<=10;i++){let d=document.createElement('div');d.className='ch'+(i==1?' active':'');d.innerText='CH'+i;d.onclick=()=>{document.querySelectorAll('.ch').forEach(c=>c.classList.remove('active'));d.classList.add('active');curCh=i;document.getElementById('cur').innerText='CH '+i;fetch('/set_channel/'+i)};document.getElementById('chs').appendChild(d)}
+async function load(){let r=await fetch('/get_radio');let j=await r.json();document.getElementById('log').innerHTML=j.map(m=>`<div><b>${m.user}</b> [${m.time}]<br>${m.file?`<audio controls src="/evidence/${m.file}" style="width:100%"></audio>`:''} ${m.text}</div>`).reverse().join('')}
+setInterval(load,1500);load()
+let p=document.getElementById('ptt')
+p.onmousedown=p.ontouchstart=async(e)=>{e.preventDefault();chunks=[];let s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s,{mimeType:'audio/webm;codecs=opus'});rec.ondataavailable=e=>{chunks.push(e.data)};rec.start();p.classList.add('rec');p.innerText='RECORDING...'}
+p.onmouseup=p.ontouchend=e=>{e.preventDefault();if(!rec)return;rec.stop();p.classList.remove('rec');p.innerText='HOLD TO TALK - hold 2 sec';rec.onstop=async()=>{let b=new Blob(chunks,{type:'audio/webm'});let fd=new FormData();fd.append('audio',b,'radio.webm');await fetch('/send_radio',{method:'POST',body:fd});load()}}
+</script>
+</body>
+</html>

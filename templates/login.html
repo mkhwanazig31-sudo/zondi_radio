@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZONDI PATROL</title>
+<style>
+body{background:#000;color:#FFD700;font-family:Arial;text-align:center;padding:15px}
+.box{border:3px solid #FFD700;padding:20px;border-radius:15px;max-width:380px;margin:auto;background:#111}
+input,select{width:90%;padding:12px;margin:8px;border:2px solid #FFD700;background:#fff;color:#000;border-radius:10px}
+button{width:95%;padding:14px;background:#FFD700;color:#000;font-weight:bold;border:none;border-radius:10px;cursor:pointer}
+.logo{width:160px;border:3px solid #FFD700;border-radius:20px;box-shadow:0 0 15px #FFD700}
+</style>
+</head>
+<body>
+<img src="/static/logo.png" class="logo">
+<h2 style="margin:10px">ZONDI PATROL SERVICE</h2>
+<p style="color:#fff;font-size:12px">EST. 2026 | EMERGENCY RADIO RESPONSE</p>
+<div class="box">
+{% if error %}<p style="background:red;color:white;padding:8px;border-radius:5px">{{error}}</p>{% endif %}
+{% if success %}<p style="background:green;color:white;padding:8px;border-radius:5px">{{success}}</p>{% endif %}
+
+<!-- FIXED: autocomplete off stops the popup -->
+<form method="POST" action="/login" autocomplete="off">
+<input type="text" name="username" placeholder="Username" required autocomplete="off">
+<input type="password" name="password" placeholder="Password (Encrypted)" required autocomplete="off" autocomplete="new-password">
+<button type="submit">LOGIN TO RADIO 📻</button>
+</form>
+
+<p style="font-size:13px;margin-top:15px">
+<a href="/register" style="color:#FFD700;font-weight:bold">Create New Account 👤</a><br>
+<a href="/forgot" style="color:orange">Forgot Password?</a>
+</p>
+<p style="color:red;font-size:11px;margin-top:10px">• RADIO NETWORK: ONLINE - ENCRYPTED LOGIN ENABLED</p>
+</div>
+<p style="font-size:10px;color:#666;margin-top:15px">Protected by Zondi Patrol Service | Ga-Rankuwa Unit<br>All passwords encrypted</p>
+</body>
+</html>

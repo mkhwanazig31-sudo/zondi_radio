@@ -1,0 +1,15 @@
+<!DOCTYPE html><html><head><title>ZONDI DEV</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:#000;color:#FFD700;font-family:monospace;padding:10px}.card{background:#111;border:1px solid #333;padding:8px;margin:5px 0}</style></head><body>
+<h2>👨‍💻 DEVELOPER PANEL <a href="/logout" style="float:right;color:cyan">Logout</a></h2>
+<h3>📍 Live GPS</h3>{% for u,l in locations.items() %}<div class="card">{{u}}: {{l.lat}}, {{l.lng}} at {{l.time}}</div>{% else %}<p>No GPS yet</p>{% endfor %}
+<h3>📁 Evidence & Radio Files</h3>{% for f in files %}<div class="card">{{f}} - <a href="/evidence/{{f}}" target="_blank" style="color:cyan">PLAY/DOWNLOAD</a></div>{% else %}<p>No evidence yet - trigger panic on client</p>{% endfor %}
+<h3>📻 Radio Log (JSON)</h3><div id="log" style="background:#111;padding:10px;height:300px;overflow:auto"></div>
+<script>setInterval(()=>{fetch('/get_radio').then(r=>r.json()).then(ms=>{let l=document.getElementById('log');l.innerHTML="";ms.forEach(m=>{l.innerHTML+=`<div>${m.time} - ${m.user}: ${m.text} - ${m.file||''}</div>`})})},2000)</script>
+
+<!-- DESIGNER CREDIT -->
+<div style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,0.9);border:1.5px solid #FFD700;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 0 12px rgba(255,215,0,0.5)">
+<img src="/static/logo.png" style="width:28px;height:28px;border-radius:50%;border:1px solid #FFD700">
+<div style="text-align:left;line-height:1.15">
+<div style="color:#fff;font-size:9px">Designed & Developed by <b style="color:#FFD700">Mkhwanazi</b></div>
+<div style="color:#FFD700;font-size:7.5px">Engine: Spark | © 2026 ZPS</div>
+</div>
+</div></body></html>

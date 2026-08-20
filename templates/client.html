@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html><head><title>ZONDI - CLIENT</title><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>body{background:#000;color:#FFD700;font-family:Arial;margin:0;padding:10px}.top{background:#FFD700;color:#000;padding:10px;font-weight:bold;display:flex;justify-content:space-between}#map{height:200px;border:2px solid #FFD700}#log{background:#111;border:1px solid red;color:#0f0;padding:10px;font-size:11px;height:80px;overflow:auto;margin:5px 0}video{width:100%;background:#222;height:200px;border:2px solid #FFD700}#panic{background:red;color:#fff;font-size:18px;padding:15px;width:100%;border:none;border-radius:10px}</style>
+</head><body>
+<div class="top"><span>ZPS - {{user}}</span><a href="/logout" style="color:#000">LOGOUT</a></div>
+<div id="log">DEBUG LOG:<br></div>
+<div id="map"></div>
+<video id="cam" autoplay muted playsinline></video>
+<button id="panic">🚨 PANIC</button>
+<script>
+function LOG(t){document.getElementById('log').innerHTML+=t+"<br>"; console.log(t);}
+let user="{{user}}"; LOG("Starting... User: "+user);
+let map=L.map('map').setView([-26.2041,28.0473],11); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map); let marker=L.marker([-26.2041,28.0473]).addTo(map); LOG("Map OK");
+if(!navigator.geolocation){LOG("❌ NO GEOLOCATION SUPPORT");}else{LOG("Requesting GPS...");navigator.geolocation.watchPosition(p=>{let lat=p.coords.latitude,lng=p.coords.longitude;LOG("✅ GPS: "+lat+","+lng);marker.setLatLng([lat,lng]);map.setView([lat,lng],16);fetch('/update_location',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:user,lat:lat,lng:lng})});},e=>{LOG("❌ GPS ERROR: "+e.message+" - ALLOW LOCATION");},{enableHighAccuracy:true});}
+LOG("Requesting CAMERA... isSecureContext="+window.isSecureContext);
+navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(s=>{LOG("✅ CAMERA OK - Streaming");document.getElementById('cam').srcObject=s;window.camStream=s;}).catch(e=>{LOG("❌ CAMERA BLOCKED: "+e.name+" - "+e.message); LOG("FIX: Use chrome://flags -> insecure origins -> http://192.168.1.71:5000");});
+document.getElementById('panic').onclick=()=>{LOG("PANIC PRESSED"); if(!window.camStream){LOG("❌ No cam stream - cannot record"); return;} let rec=new MediaRecorder(window.camStream); let chunks=[]; rec.ondataavailable=ev=>chunks.push(ev.data); rec.onstop=()=>{LOG("Uploading evidence..."); let b=new Blob(chunks,{type:'video/webm'}); let fd=new FormData(); fd.append('video',b); fetch('/upload_evidence',{method:'POST',body:fd}).then(r=>r.json()).then(()=>LOG("✅ Evidence uploaded! Check dev panel")).catch(err=>LOG("❌ Upload fail: "+err));}; rec.start(); fetch('/trigger',{method:'POST'}).then(()=>LOG("✅ Panic sent to HQ")); setTimeout(()=>{rec.stop(); LOG("Recording stopped");},5000);};
+</script>
+
+<!-- DESIGNER CREDIT -->
+<div style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,0.9);border:1.5px solid #FFD700;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 0 12px rgba(255,215,0,0.5)">
+<img src="/static/logo.png" style="width:28px;height:28px;border-radius:50%;border:1px solid #FFD700">
+<div style="text-align:left;line-height:1.15">
+<div style="color:#fff;font-size:9px">Designed & Developed by <b style="color:#FFD700">Mkhwanazi</b></div>
+<div style="color:#FFD700;font-size:7.5px">Engine: Spark | © 2026 ZPS</div>
+</div>
+</div>
+
+</body></html>

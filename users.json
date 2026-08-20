@@ -1,0 +1,47 @@
+{
+  "client01": {
+    "password": "scrypt:32768:8:1$7haG0W9sd33ga1DW$64d297c4bcd9fb66685d92af428652422f00b38552d7237557ffed7f2238a3b29d5e8055e4ddd68160878ffd9c3f620c93dd40a6b11ccab87a043f1475894ccb",
+    "role": "client",
+    "email": "client@zps.co.za"
+  },
+  "patrol01": {
+    "password": "scrypt:32768:8:1$7H0UbVBzqsHxH6vj$6a93c4d2a1b5671d4b0348c20b40d357385f3577f33a26796fbcf2d156fc42b3268381b025f2abd8f53e7ea2554e200a33b39ebf8619b4973d1d30cc475888db",
+    "role": "patrol",
+    "email": "patrol@zps.co.za"
+  },
+  "zondi_dev": {
+    "password": "scrypt:32768:8:1$aIurOUVdNekQKK3W$8534d82210a4f962494ffc4e2c826f495a359c2dbc9b18173521efd1b097e88695d4276b1e16b068dc0880f570bebe72001540e4f5b23b54682053b5562e6f52",
+    "role": "dev",
+    "email": "dev@zps.co.za"
+  },
+  "Mkhwanazig31": {
+    "password": "scrypt:32768:8:1$V36n3f4AyeZm5o1W$115c0ac4e7d0d6c6f75301b97fe8210a5505c99badc5b1d31336c34d5a77739ca12cdf13da151999dff67681fda5c6b493dc1c81bebb8f2ee706871680ca0d2c",
+    "role": "client",
+    "email": "mkhwanazig31@gmail.com",
+    "created": "2026-08-20T00:43:40.911166"
+  },
+  "Mkhwanazig32": {
+    "password": "scrypt:32768:8:1$GFLrx11K8u4em3Bn$b318079ec8a0cbbaf0e82a4afe9cc33057841493c1176954a0fa24fe547e5996a5550745ad39c56059c27d563d46cbcb6f429ec8188308533c6b1113cb6e1fa4",
+    "role": "patrol",
+    "email": "mkhwanazig31@gmail.com",
+    "created": "2026-08-20T00:44:39.385513"
+  },
+  "Mkhwanazig33": {
+    "password": "scrypt:32768:8:1$856Qqq8XYDhjwHy9$ef81ebec2787c56684e990274d2137022c606bcc914683a051b456fb96af6d055e2a64362867ef3efb68a58f3b2b2986f2776d3f518da014bbf68a74ffc3d2cd",
+    "role": "patrol",
+    "email": "mkhwanazig31@gmail.com",
+    "created": "2026-08-20T00:45:57.222484"
+  },
+  "patrol11": {
+    "password": "scrypt:32768:8:1$Q87FN01uvsNFNB4P$79e2ccbdf2eabab5a289484bcb78ded45362eeb061edf09e741fd5f3c3cdb714c19558c7c06e2e50d6c2831d57ecf4464e6273c45c1a249d028861c5b9f58c99",
+    "role": "patrol",
+    "email": "mkhwanazig31@gmail.com",
+    "created": "2026-08-20T01:23:32.215613"
+  },
+  "Dev1": {
+    "password": "scrypt:32768:8:1$NXZxmTJxzJnHaZtM$150d5e835c80528e6b18213c9b0d570574a72196a7111f1d975b78d4135af2afda91ff190ad73c9d4575f202338083c4f3d545cfeb755e2bde7097fcb364f274",
+    "role": "dev",
+    "email": "mkhwanazig31@gmail.com",
+    "created": "2026-08-20T01:30:51.366631"
+  }
+}
