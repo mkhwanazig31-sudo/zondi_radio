@@ -101,7 +101,6 @@ def forgot():
     username = username_input.strip() if username_input else ""
     new_pw = request.form.get('new_password')
   
-    # Matching your frontend input field mappings perfectly
     users = load_users()
     if username not in users:
         return render_template('forgot.html', error="Username not found")
@@ -148,8 +147,6 @@ def update_location():
 @app.route('/api/radio/panic', methods=['POST'])
 def trigger():
     user = session.get('user', 'unknown')
-    now_time = datetime.now().strftime("%H:%M:%S")
-  
     msg = {
         "user": user,
         "text": f"🚨🚨 PANIC ALERT FROM {user.upper()} - NEEDS IMMEDIATE RESPONSE! 🚨🚨",
@@ -174,7 +171,6 @@ def upload_evidence():
 @app.route('/upload_audio', methods=['POST'])
 @app.route('/api/radio/upload', methods=['POST'])
 def radio_upload():
-    # Supports both singular 'audio' and multi-part 'audio[]' names seamlessly
     file_key = 'audio' if 'audio' in request.files else 'audio[]'
     if file_key not in request.files:
         return jsonify({"error": "No audio file payload found"}), 400
@@ -201,7 +197,6 @@ def radio_upload():
 @app.route('/get_radio')
 def radio_feed():
     u = session.get('user', 'guest')
-    # Unified channel catcher for parameters
     channel = request.args.get('channel', str(user_channels.get(u, 1)))
   
     if channel == 'ch_all' or channel == 'all':
@@ -218,23 +213,52 @@ def get_locations():
 def evidence_file(filename):
     return send_from_directory(EVIDENCE_FOLDER, filename)
 
-# FIX: Added precise media streaming byte-range headers to fix cross-platform player crashes
+# FIX: Full HTTP-Range Request engine implemented to satisfy Chrome/Safari timeline rendering
 @app.route('/static/radio/<filename>')
 def serve_radio(filename):
     file_path = os.path.join(RADIO_FOLDER, filename)
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
        
-    def generate():
+    file_size = os.path.getsize(file_path)
+    range_header = request.headers.get('Range', None)
+   
+    if not range_header:
+        # Standard delivery if no partial ranges requested
+        def stream_full():
+            with open(file_path, "rb") as f:
+                while True:
+                    chunk = f.read(8192)
+                    if not chunk: break
+                    yield chunk
+        return Response(stream_full(), mimetype="audio/webm", headers={"Accept-Ranges": "bytes"})
+       
+    # Process Byte Range Request (e.g. bytes=0-1 or bytes=0-)
+    byte_str = range_header.replace('bytes=', '')
+    start_str, end_str = byte_str.split('-')
+   
+    start = int(start_str) if start_str else 0
+    end = int(end_str) if end_str else file_size - 1
+    if end >= file_size: end = file_size - 1
+   
+    length = end - start + 1
+   
+    def generate_range(start_byte, length_bytes):
         with open(file_path, "rb") as f:
-            while True:
-                chunk = f.read(4096)
-                if not chunk:
-                    break
+            f.seek(start_byte)
+            remaining = length_bytes
+            while remaining > 0:
+                chunk_size = min(8192, remaining)
+                chunk = f.read(chunk_size)
+                if not chunk: break
+                remaining -= len(chunk)
                 yield chunk
-               
-    # Direct container delivery forces mobile browser decoders to activate cleanly
-    return Response(generate(), mimetype="audio/webm")
+
+    rv = Response(generate_range(start, length), 206, mimetype="audio/webm", direct_passthrough=True)
+    rv.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
+    rv.headers.add('Accept-Ranges', 'bytes')
+    rv.headers.add('Content-Length', str(length))
+    return rv
 
 @app.route('/set_channel/<int:ch>')
 def set_channel(ch):
@@ -247,10 +271,8 @@ def logout():
     return redirect('/login')
 
 
-# --- SERVER RUNTIME ALLOCATION ---
 if __name__ == '__main__':
     load_users()
-    print("ZPS V4 - ENCRYPTED CORES READY FOR DEPLOYMENT")
-    # Clean environmental assignment values ensure smooth port assignments on cloud providers
+    print("ZPS V4 - RANGE RESILIENCE ENGINE ACTIVE")
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
