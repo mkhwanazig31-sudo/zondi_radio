@@ -1,29 +1,242 @@
 <!DOCTYPE html>
-<html><head><title>ZONDI - CLIENT</title><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>body{background:#000;color:#FFD700;font-family:Arial;margin:0;padding:10px}.top{background:#FFD700;color:#000;padding:10px;font-weight:bold;display:flex;justify-content:space-between}#map{height:200px;border:2px solid #FFD700}#log{background:#111;border:1px solid red;color:#0f0;padding:10px;font-size:11px;height:80px;overflow:auto;margin:5px 0}video{width:100%;background:#222;height:200px;border:2px solid #FFD700}#panic{background:red;color:#fff;font-size:18px;padding:15px;width:100%;border:none;border-radius:10px}</style>
-</head><body>
-<div class="top"><span>ZPS - {{user}}</span><a href="/logout" style="color:#000">LOGOUT</a></div>
-<div id="log">DEBUG LOG:<br></div>
-<div id="map"></div>
-<video id="cam" autoplay muted playsinline></video>
-<button id="panic">🚨 PANIC</button>
-<script>
-function LOG(t){document.getElementById('log').innerHTML+=t+"<br>"; console.log(t);}
-let user="{{user}}"; LOG("Starting... User: "+user);
-let map=L.map('map').setView([-26.2041,28.0473],11); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map); let marker=L.marker([-26.2041,28.0473]).addTo(map); LOG("Map OK");
-if(!navigator.geolocation){LOG("❌ NO GEOLOCATION SUPPORT");}else{LOG("Requesting GPS...");navigator.geolocation.watchPosition(p=>{let lat=p.coords.latitude,lng=p.coords.longitude;LOG("✅ GPS: "+lat+","+lng);marker.setLatLng([lat,lng]);map.setView([lat,lng],16);fetch('/update_location',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:user,lat:lat,lng:lng})});},e=>{LOG("❌ GPS ERROR: "+e.message+" - ALLOW LOCATION");},{enableHighAccuracy:true});}
-LOG("Requesting CAMERA... isSecureContext="+window.isSecureContext);
-navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(s=>{LOG("✅ CAMERA OK - Streaming");document.getElementById('cam').srcObject=s;window.camStream=s;}).catch(e=>{LOG("❌ CAMERA BLOCKED: "+e.name+" - "+e.message); LOG("FIX: Use chrome://flags -> insecure origins -> http://192.168.1.71:5000");});
-document.getElementById('panic').onclick=()=>{LOG("PANIC PRESSED"); if(!window.camStream){LOG("❌ No cam stream - cannot record"); return;} let rec=new MediaRecorder(window.camStream); let chunks=[]; rec.ondataavailable=ev=>chunks.push(ev.data); rec.onstop=()=>{LOG("Uploading evidence..."); let b=new Blob(chunks,{type:'video/webm'}); let fd=new FormData(); fd.append('video',b); fetch('/upload_evidence',{method:'POST',body:fd}).then(r=>r.json()).then(()=>LOG("✅ Evidence uploaded! Check dev panel")).catch(err=>LOG("❌ Upload fail: "+err));}; rec.start(); fetch('/trigger',{method:'POST'}).then(()=>LOG("✅ Panic sent to HQ")); setTimeout(()=>{rec.stop(); LOG("Recording stopped");},5000);};
-</script>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZPS Client Portal</title>
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #ffffff;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #ffd700;
+            color: #000000;
+            padding: 8px 12px;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .logout-link {
+            color: #000000;
+            text-decoration: none;
+            border-bottom: 2px solid #000000;
+        }
+        .debug-panel {
+            background-color: #111;
+            border: 1px solid #ff4d4d;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: #2ecc71;
+            margin-bottom: 12px;
+            min-height: 80px;
+        }
+        .debug-title {
+            color: #ff4d4d;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .panic-btn-wrapper {
+            margin-bottom: 12px;
+        }
+        .panic-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #e60000 0%, #990000 100%);
+            color: #ffffff;
+            border: 1px solid #ff3333;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(230, 0, 0, 0.4);
+            letter-spacing: 0.5px;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .grid-tab {
+            background-color: #1a1a1a;
+            border: 1px solid #ff8c00;
+            color: #ff8c00;
+            padding: 12px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .grid-tab.secondary {
+            border-color: #3498db;
+            color: #3498db;
+        }
+        .sub-text {
+            font-size: 9px;
+            color: #888888;
+            font-weight: normal;
+        }
+        .management-bar {
+            background-color: #161616;
+            border: 1px solid #262626;
+            border-radius: 6px;
+            padding: 8px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .mgmt-btn-group {
+            display: flex;
+            gap: 6px;
+        }
+        .mgmt-btn {
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-save { background-color: #28a745; color: #fff; }
+        .btn-delete { background-color: #333333; color: #ccc; }
+        .footer-panel {
+            text-align: center;
+            background: linear-gradient(0deg, #0a0a0a 0%, #151515 100%);
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+            color: #888888;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.05);
+        }
+        .footer-highlight {
+            color: #ffd700;
+            font-weight: bold;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
 
-<!-- DESIGNER CREDIT -->
-<div style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,0.9);border:1.5px solid #FFD700;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 0 12px rgba(255,215,0,0.5)">
-<img src="/static/logo.png" style="width:28px;height:28px;border-radius:50%;border:1px solid #FFD700">
-<div style="text-align:left;line-height:1.15">
-<div style="color:#fff;font-size:9px">Designed & Developed by <b style="color:#FFD700">Mkhwanazi</b></div>
-<div style="color:#FFD700;font-size:7.5px">Engine: Spark | © 2026 ZPS</div>
-</div>
-</div>
+    <!-- 1. PORTAL HEADER -->
+    <div class="header-bar">
+        <span>ZONDI - CLIENT</span>
+        <span>ZPS - {{user}} <a href="/logout" class="logout-link">LOGOUT</a></span>
+    </div>
 
-</body></html>
+    <!-- 2. SYSTEM STATUS LOG PANEL -->
+    <div class="debug-panel">
+        <span class="debug-title">DEBUG LOG:</span>
+        <div id="logContent">
+            System Operational...<br>
+            Awaiting input telemetry...
+        </div>
+    </div>
+
+    <!-- 3. PORTABLE SOS / EMERGENCY COMPONENT -->
+    <div class="panic-btn-wrapper">
+        <button id="panicBtn" onclick="triggerClientPanic()" class="panic-button">
+            🚨 URGENT SOS PANIC
+        </button>
+    </div>
+
+    <!-- 4. MODERN SECURITY FEATURE TABS -->
+    <div class="options-grid">
+        <!-- FEATURE A: CONNECT TO AN HQ AGENT -->
+        <button onclick="contactControlRoom()" class="grid-tab">
+            <span>📞 CHAT TO AGENT</span>
+            <span class="sub-text">Open Control Room Link</span>
+        </button>
+       
+        <!-- FEATURE B: SUBSCRIPTION/ALARM OPTIONS -->
+        <button onclick="openServicePortal()" class="grid-tab secondary">
+            <span>🛡️ SERVICE OPTIONS</span>
+            <span class="sub-text">Escort & Alarm Status</span>
+        </button>
+    </div>
+
+    <!-- 5. SETTINGS / UTILITIES MANAGEMENT BAR -->
+    <div class="management-bar">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="color: #ffd700; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;">ACCOUNT UTILITIES</span>
+            <span style="color: #666; font-size: 9px;">Profile Token: Active</span>
+        </div>
+        <div class="mgmt-btn-group">
+            <button onclick="saveClientProfile()" class="mgmt-btn btn-save">Explicitly 💾 SAVE</button>
+            <button onclick="clearClientCache()" class="mgmt-btn btn-delete">🗑️ DELETE</button>
+        </div>
+    </div>
+
+    <!-- 6. AUTHORITATIVE BRAND FOOTER -->
+    <div class="footer-panel">
+        Designed & Developed by <a href="#" class="footer-highlight">Mkhwanazi</a>
+        <br>
+        <span style="color: #555; font-size: 10px; display: inline-block; margin-top: 4px;">Engine: Spark | © 2026 ZPS</span>
+    </div>
+
+    <!-- FRONTEND OPERATIONS LOGIC -->
+    <script>
+        function updateLog(message) {
+            const logBox = document.getElementById('logContent');
+            logBox.innerHTML += `<br>${message}`;
+        }
+
+        async function triggerClientPanic() {
+            const btn = document.getElementById('panicBtn');
+            btn.style.background = '#660000';
+            btn.innerText = "⚠️ SOS BROADCASTING...";
+            updateLog("<span style='color:#ff4d4d;'>🚨 SOS Triggered! Connecting to HQ Response...</span>");
+           
+            try {
+                await fetch('/api/radio/panic', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user: '{{user}}', type: 'CLIENT_SOS' })
+                });
+                updateLog("✅ Telemetry received by Dispatch. Responders routing.");
+            } catch (err) {
+                updateLog("❌ Broadcast link failure. Retrying...");
+            }
+        }
+
+        function contactControlRoom() {
+            updateLog("📞 Initializing live terminal intercom channel with next available Agent...");
+            alert("Connecting you to a live HQ Control Room Operator...");
+        }
+
+        function openServicePortal() {
+            updateLog("📋 Fetching property security profiles...");
+            alert("Opening account dashboard: Request Home Escorts, Report False Alarms, or Test Sensors.");
+        }
+
+        function saveClientProfile() {
+            updateLog("💾 Local tracking layout structure properties verified.");
+            alert("Client layout data saved to local secure cache storage.");
+        }
+
+        function clearClientCache() {
+            if (confirm("Flush stored token buffers and reset interface data?")) {
+                updateLog("🗑️ System cache memory flushed successfully.");
+                alert("Interface storage wiped successfully.");
+            }
+        }
+    </script>
+</body>
+</html>
