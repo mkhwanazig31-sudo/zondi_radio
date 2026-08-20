@@ -1,25 +1,246 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>ZPS Register</title>
-<style>body{background:#000;color:#FFD700;font-family:Arial;text-align:center;padding:15px}.box{border:3px solid #FFD700;padding:20px;border-radius:15px;max-width:380px;margin:auto;background:#111}input,select{width:90%;padding:12px;margin:8px;border:2px solid #FFD700;background:#fff;color:#000;border-radius:8px}button{width:95%;padding:14px;background:#FFD700;color:#000;font-weight:bold;border:none;border-radius:10px}</style></head><body>
-<img src="/static/logo.png" style="width:120px;border:2px solid #FFD700;border-radius:15px"><h2>CREATE NEW ACCOUNT</h2>
-<div class="box">
-{% if error %}<p style="color:red">{{error}}</p>{% endif %}
-<form method="POST">
-<input name="username" placeholder="Choose Username" required>
-<input name="email" type="email" placeholder="Email Address" required>
-<select name="role"><option value="client">Client</option><option value="patrol">Patrol</option><option value="dev">Developer</option></select>
-<input name="password" type="password" placeholder="Create Password (encrypted)" required>
-<button type="submit">REGISTER - ENCRYPT & SAVE 🔐</button>
-</form>
-<p><a href="/login" style="color:cyan">Already have account? Login</a></p>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZPS - Register Account</title>
+    <style>
+        body {
+            background-color: #0d0f12;
+            color: #c5c6c7;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .register-container {
+            background-color: #11161d;
+            border: 1px solid #232d38;
+            border-radius: 8px;
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+        }
+        .system-header {
+            text-align: center;
+            color: #3498db;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        .section-title {
+            text-align: center;
+            color: #ffd700;
+            font-size: 14px;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .error-alert {
+            background-color: #2d1414;
+            color: #ff4d4d;
+            border-left: 4px solid #e60000;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            font-size: 11px;
+            color: #8b9bb4;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .input-field {
+            background-color: #1c232d;
+            color: #ffffff;
+            border: 1px solid #2d384c;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-field:focus {
+            border-color: #3498db;
+        }
+        /* Custom Portal Role Radio Selectors */
+        .role-selector-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .role-label {
+            font-size: 11px;
+            color: #8b9bb4;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .role-option {
+            background-color: #1c232d;
+            border: 1px solid #2d384c;
+            border-radius: 5px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffffff;
+            transition: background-color 0.15s, border-color 0.15s;
+        }
+        .role-option:hover {
+            background-color: #232d38;
+        }
+        .role-option input[type="radio"] {
+            margin: 0;
+            accent-color: #3498db;
+            transform: scale(1.1);
+        }
+        .role-option.client-accent input[type="radio"]:checked + span { color: #2ecc71; }
+        .role-option.patrol-accent input[type="radio"]:checked + span { color: #ff8c00; }
+        .role-option.dev-accent input[type="radio"]:checked + span { color: #3498db; }
+       
+        .btn-register {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
+            color: #ffffff;
+            border: 1px solid #28a745;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: bold;
+            font-family: monospace;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+        .btn-register:active {
+            transform: scale(0.99);
+        }
+        .login-redirect-wrapper {
+            text-align: center;
+            font-size: 12px;
+        }
+        .login-link {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .login-link:hover {
+            text-decoration: underline;
+        }
+        .system-marker-z {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffd700;
+            text-align: center;
+            margin: 20px 0 5px 0;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        .footer-panel {
+            text-align: center;
+            font-size: 11px;
+            color: #657786;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 15px;
+        }
+        .footer-highlight {
+            color: #3498db;
+            font-weight: bold;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
 
-<!-- DESIGNER CREDIT -->
-<div style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,0.9);border:1.5px solid #FFD700;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 0 12px rgba(255,215,0,0.5)">
-<div style="width:28px;height:28px;border-radius:50%;border:1px solid #FFD700;background:#FFD700;color:#000;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px">Z</div>
-<div style="text-align:left;line-height:1.15">
-<div style="color:#fff;font-size:9px">Designed & Developed by <b style="color:#FFD700">Mkhwanazi</b></div>
-<div style="color:#FFD700;font-size:7.5px">Engine: Spark | © 2026 ZPS</div>
-</div>
-</div>
+    <!-- MAIN REGISTRATION SUBMISSION CONTAINER -->
+    <div class="register-container">
+        <div class="system-header">ZPS Register</div>
+        <h2 class="section-title">## CREATE NEW ACCOUNT</h2>
 
-</body></html>
+        <!-- DYNAMIC SERVER ERROR DISPATCH LOGIC (PROTECTED) -->
+        {% if error %}
+        <div class="error-alert">
+            ❌ [AUTH_ERROR]: {{error}}
+        </div>
+        {% endif %}
+
+        <form action="/register" method="POST">
+            <!-- INPUT TELEMETRY GROUPS -->
+            <div class="form-group">
+                <label for="username">User Identity Node</label>
+                <input type="text" id="username" name="username" class="input-field" placeholder="Enter registration handle" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Encryption Phrase</label>
+                <input type="password" id="password" name="password" class="input-field" placeholder="Enter secure matrix key" required>
+            </div>
+
+            <!-- MANDATORY SECURITY ROLE SELECTOR SYSTEM -->
+            <div class="role-selector-group">
+                <div class="role-label">Select System Authorization Level</div>
+               
+                <label class="role-option client-accent">
+                    <input type="radio" name="role" value="client" required checked>
+                    <span>Client Portal Access Node</span>
+                </label>
+
+                <label class="role-option patrol-accent">
+                    <input type="radio" name="role" value="patrol">
+                    <span>Patrol Operator Feed Matrix</span>
+                </label>
+
+                <label class="role-option dev-accent">
+                    <input type="radio" name="role" value="developer">
+                    <span>Developer Infrastructure Terminal</span>
+                </label>
+            </div>
+
+            <!-- SUBMIT OPERATION -->
+            <button type="submit" class="btn-register">
+                REGISTER - ENCRYPT & SAVE 🔐
+            </button>
+        </form>
+
+        <!-- REDIRECTION NAVIGATION LAYERS -->
+        <div class="login-redirect-wrapper">
+            Already have account? <a href="/login" class="login-link">Login</a>
+        </div>
+
+        <!-- AUTHENTIC IDENTITY MARKER SIGNATURE -->
+        <div class="system-marker-z">Z</div>
+    </div>
+
+    <!-- SIGNATURE BRAND FOOTER -->
+    <div class="footer-panel">
+        Designed & Developed by <a href="#" class="footer-highlight">Mkhwanazi</a>
+        <br>
+        <span style="color: #222b3d; font-size: 10px; display: inline-block; margin-top: 4px;">Engine: Spark | © 2026 ZPS</span>
+    </div>
+
+</body>
+</html>
