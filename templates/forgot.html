@@ -1,24 +1,174 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>ZPS Forgot</title>
-<style>body{background:#000;color:#FFD700;font-family:Arial;text-align:center;padding:15px}.box{border:3px solid #FFD700;padding:20px;border-radius:15px;max-width:380px;margin:auto;background:#111}input{width:90%;padding:12px;margin:8px;border:2px solid #FFD700;background:#fff;color:#000;border-radius:8px}button{width:95%;padding:14px;background:red;color:#fff;font-weight:bold;border:none;border-radius:10px}</style></head><body>
-<img src="/static/logo.png" style="width:120px;border:2px solid #FFD700;border-radius:15px"><h2>RESET PASSWORD</h2>
-<div class="box">
-{% if error %}<p style="color:red">{{error}}</p>{% endif %}
-<form method="POST">
-<input name="username" placeholder="Your Username" required>
-<input name="new_password" type="password" placeholder="New Password" required>
-<input name="confirm_password" type="password" placeholder="Confirm New Password" required>
-<button type="submit">RESET & ENCRYPT NEW PASSWORD 🔑</button>
-</form>
-<p><a href="/login" style="color:cyan">Back to Login</a></p>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZPS - Forgot Password</title>
+    <style>
+        body {
+            background-color: #0d0f12;
+            color: #c5c6c7;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .forgot-container {
+            background-color: #11161d;
+            border: 1px solid #232d38;
+            border-radius: 8px;
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+        }
+        .system-header {
+            text-align: center;
+            color: #3498db;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        .section-title {
+            text-align: center;
+            color: #ffd700;
+            font-size: 14px;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .error-alert {
+            background-color: #2d1414;
+            color: #ff4d4d;
+            border-left: 4px solid #e60000;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            font-size: 11px;
+            color: #8b9bb4;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .input-field {
+            background-color: #1c232d;
+            color: #ffffff;
+            border: 1px solid #2d384c;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-field:focus {
+            border-color: #3498db;
+        }
+        .btn-reset {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #d39e00 0%, #937000 100%);
+            color: #ffffff;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: bold;
+            font-family: monospace;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.15);
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+        .btn-reset:active {
+            transform: scale(0.99);
+        }
+        .login-redirect-wrapper {
+            text-align: center;
+            font-size: 12px;
+        }
+        .login-link {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .login-link:hover {
+            text-decoration: underline;
+        }
+        .footer-panel {
+            text-align: center;
+            font-size: 11px;
+            color: #657786;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 15px;
+        }
+        .footer-highlight {
+            color: #3498db;
+            font-weight: bold;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
 
-<!-- DESIGNER CREDIT -->
-<div style="position:fixed;bottom:8px;right:8px;background:rgba(0,0,0,0.9);border:1.5px solid #FFD700;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 0 12px rgba(255,215,0,0.5)">
-<img src="/static/logo.png" style="width:28px;height:28px;border-radius:50%;border:1px solid #FFD700">
-<div style="text-align:left;line-height:1.15">
-<div style="color:#fff;font-size:9px">Designed & Developed by <b style="color:#FFD700">Mkhwanazi</b></div>
-<div style="color:#FFD700;font-size:7.5px">Engine: Spark | © 2026 ZPS</div>
-</div>
-</div>
+    <!-- PASSWORD RECOVERY MAIN CONTAINER -->
+    <div class="forgot-container">
+        <div class="system-header">ZPS Forgot</div>
+        <h2 class="section-title">## RESET PASSWORD</h2>
 
-</body></html>
+        <!-- DYNAMIC SERVER ERROR DISPATCH LOGIC (PROTECTED) -->
+        {% if error %}
+        <div class="error-alert">
+            ❌ [RECOVERY_ERROR]: {{error}}
+        </div>
+        {% endif %}
+
+        <form action="/forgot" method="POST">
+            <!-- INPUT GROUPS -->
+            <div class="form-group">
+                <label for="username">User Identity Node</label>
+                <input type="text" id="username" name="username" class="input-field" placeholder="Enter your account handle" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">New Encryption Phrase</label>
+                <input type="password" id="new_password" name="new_password" class="input-field" placeholder="Enter new secure matrix key" required>
+            </div>
+
+            <!-- SUBMIT OPERATION -->
+            <button type="submit" class="btn-reset">
+                RESET & ENCRYPT NEW PASSWORD 🔑
+            </button>
+        </form>
+
+        <!-- BACKWARD NAVIGATION LAYERS -->
+        <div class="login-redirect-wrapper">
+            <a href="/login" class="login-link">Back to Login</a>
+        </div>
+    </div>
+
+    <!-- SIGNATURE BRAND FOOTER -->
+    <div class="footer-panel">
+        Designed & Developed by <a href="#" class="footer-highlight">Mkhwanazi</a>
+        <br>
+        <span style="color: #222b3d; font-size: 10px; display: inline-block; margin-top: 4px;">Engine: Spark | © 2026 ZPS</span>
+    </div>
+
+</body>
+</html>
