@@ -1,128 +1,290 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZPS V5 | OUKITEL MODE</title>
-<style>
-body{background:#0f2020;color:#fff;font-family:Arial;margin:0;display:flex;justify-content:center}
-.phone{width:380px;background:#111;border-radius:30px;border:3px solid #333;padding:10px;margin-top:10px}
-.header{display:flex;justify-content:space-between;padding:10px 15px;font-weight:bold}
-.card{background:#f5f5f5;color:#000;border-radius:18px;padding:15px;margin:10px 0}
-.badge{display:inline-block;background:#222;color:#FFD700;padding:4px 10px;border-radius:12px;font-size:11px;margin:2px}
-.mic-btn{width:160px;height:160px;background:#ff8c00;border-radius:50%;border:8px solid #fff;box-shadow:0 0 20px #ff8c00;display:flex;align-items:center;justify-content:center;margin:15px auto;font-size:50px;cursor:pointer;transition:0.1s}
-.mic-btn:active{background:#ff0000;transform:scale(0.95);box-shadow:0 0 40px red}
-.log{background:#fff;border-radius:12px;height:280px;overflow-y:auto;padding:8px}
-.bubble{background:#dcf8c6;padding:8px 12px;border-radius:12px;margin:6px 0;color:#000;font-size:13px;display:flex;justify-content:space-between;align-items:center}
-select{width:100%;padding:10px;border-radius:10px;border:2px solid #ff8c00;font-weight:bold}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZPS V5 - HQ Command</title>
+    <!-- LEAFLET REAL-TIME GEOSPATIAL MAP ASSETS -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <script src="https://unpkg.com"></script>
+    <style>
+        body {
+            background-color: #0d0f12;
+            color: #c5c6c7;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            margin: 0;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        .hq-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #1f2833;
+            border-left: 5px solid #ff8c00;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        .hq-title {
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .logout-link {
+            color: #ff4d4d;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .status-card {
+            background: #151a22;
+            border: 1px solid #232d38;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .radio-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            font-size: 11px;
+            color: #8b9bb4;
+            gap: 4px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #232d38;
+            padding-bottom: 8px;
+        }
+        .channel-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff8c00;
+            margin: 0 0 5px 0;
+        }
+        .selector-style {
+            width: 100%;
+            padding: 10px;
+            background-color: #1f2833;
+            color: #ffffff;
+            border: 1px solid #ff8c00;
+            border-radius: 4px;
+            font-weight: bold;
+            outline: none;
+            font-size: 13px;
+        }
+        .telemetry-badges {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .badge {
+            font-size: 10px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        .badge-bat { background-color: #2e7d32; color: #fff; }
+        .badge-net { background-color: #1f2833; color: #45f3ff; border: 1px solid #45f3ff; }
+        .badge-status { background-color: #ff8c00; color: #000; }
+       
+        /* Map Container Frame */
+        .map-wrapper {
+            background: #11161d;
+            border: 1px solid #232d38;
+            border-radius: 6px;
+            height: 250px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        #hqMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        .feed-container {
+            background-color: #11161d;
+            border: 1px solid #232d38;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .feed-item {
+            background-color: #1c232d;
+            border-left: 4px solid #2ecc71;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .feed-item.panic-alert {
+            border-left-color: #e60000;
+            background-color: #2d1414;
+        }
+        .feed-meta {
+            display: flex;
+            justify-content: space-between;
+            color: #8b9bb4;
+            font-size: 10px;
+        }
+        audio {
+            width: 100%;
+            height: 28px;
+            margin-top: 4px;
+        }
+       
+        .ptt-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 15px 0;
+            gap: 8px;
+        }
+        .ptt-circle-btn {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9f1c 0%, #ff6b6b 100%);
+            border: 4px solid #ffffff;
+            box-shadow: 0 0 15px rgba(255, 159, 28, 0.4);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            outline: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .ptt-circle-btn:active {
+            transform: scale(0.96);
+            background: #e60000;
+            box-shadow: 0 0 25px rgba(230, 0, 0, 0.8);
+        }
+        .ptt-label {
+            font-size: 10px;
+            font-family: monospace;
+            color: #8b9bb4;
+        }
+        .dev-footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 11px;
+            color: #657786;
+        }
+        .dev-highlight { color: #ff8c00; font-weight: bold; text-decoration: none; }
+    </style>
 </head>
 <body>
-<div class="phone">
-<div class="header"><span>◀ Talkie</span><span>⚙️</span></div>
 
-<div class="card">
-<div style="display:flex;justify-content:space-between;font-size:12px;color:#666"><span>Power: High</span><span>Volume: 6</span></div>
-<div style="font-size:20px;font-weight:900;margin:6px 0">Channel <span id="chNum">1</span> - PATROL</div>
-<div style="font-size:11px;color:#555">
-<div>Transmit: 446.00625MHZ</div>
-<div>Receive: 446.00625MHZ</div>
-<div>Call Type: All &nbsp; Color Code: 0</div>
-</div>
-<select id="channelSel">
-<option value="ch1">Channel 1 - 446.00625MHZ</option>
-<option value="ch2">Channel 2 - 446.01875MHZ</option>
-<option value="ch_all">Channel ALL - Emergency</option>
-</select>
-<div style="text-align:center;margin-top:8px">
-<span class="badge">🔋 98%</span>
-<span class="badge">📶 No Network - Radio Mode</span>
-<span class="badge" style="background:#ff8c00;color:#fff" id="status">IDLE</span>
-</div>
-</div>
+    <!-- 1. HEADER BRANDING PANEL -->
+    <div class="hq-header">
+        <span class="hq-title">ZPS V5 | OUKITEL MODE</span>
+        <span>◀ Talkie <a href="/logout" class="logout-link">⚙ LOGOUT</a></span>
+    </div>
 
-<div class="log" id="log">Waiting for radio traffic...</div>
+    <!-- 2. CHANNEL AND FREQUENCY TELEMETRY CONFIG -->
+    <div class="status-card">
+        <h2 class="channel-label" id="chDisplay">Channel 1 - PATROL</h2>
+        <div class="radio-info-grid">
+            <div>Power: High</div>
+            <div>Volume: 6</div>
+            <div>Transmit: 446.00625MHZ</div>
+            <div>Color Code: 0</div>
+            <div>Receive: 446.00625MHZ</div>
+            <div>Call Type: All</div>
+        </div>
+       
+        <select id="channelSelect" class="selector-style">
+            <option value="1">Channel 1 - 446.00625MHZ</option>
+            <option value="2">Channel 2 - 446.01875MHZ</option>
+            <option value="ch_all">Channel ALL - Emergency</option>
+        </select>
 
-<div class="mic-btn" id="pttBtn">🎙️</div>
-<div style="text-align:center;font-size:12px;color:#aaa">HOLD TO TALK - OUKITEL WP61 Plus Style</div>
-</div>
+        <div class="telemetry-badges">
+            <span class="badge badge-bat">🔋 98%</span>
+            <span class="badge badge-net">📶 Radio Mode</span>
+            <span class="badge badge-status" id="statusBadge">IDLE</span>
+        </div>
+    </div>
 
-<script>
-let currentChannel='ch1';
-let mediaRecorder,chunks=[];
-let lastCount=0;
-const logEl=document.getElementById('log');
-const statusEl=document.getElementById('status');
-const channelSel=document.getElementById('channelSel');
+    <!-- 3. INTERACTIVE GEOSPATIAL MONITOR MAP -->
+    <div class="map-wrapper">
+        <div id="hqMap"></div>
+    </div>
 
-channelSel.onchange=e=>{
-    currentChannel=e.target.value;
-    document.getElementById('chNum').innerText=e.target.value=='ch_all'?'ALL':e.target.value.replace('ch','');
-    lastCount=0;
-   
-    // --- CRUCIAL SOUND UNLOCK FIX ---
-    // Creates a silent audio snippet linked to a user gesture.
-    // This officially tells the phone browser it is allowed to play radio sounds later!
-    let unlockAudio = new Audio();
-    unlockAudio.play().catch(() => {});
-   
-    fetchFeed();
-};
+    <!-- 4. INCIDENT AUDITING FEED LIST -->
+    <div class="feed-container" id="logEl">
+        Waiting for radio traffic...
+    </div>
 
-async function fetchFeed(){
-let res=await fetch(`/api/radio/feed?channel=${currentChannel}`);
-let msgs=await res.json();
-if(msgs.length>lastCount && lastCount!=0){
-  let newest=msgs[msgs.length-1];
-  let audio=new Audio(newest.audioUrl);
-  audio.play();
-  statusEl.innerText='RX: '+newest.user;
-  statusEl.style.background='red';
-  audio.onended=()=>{statusEl.innerText='IDLE';statusEl.style.background='#ff8c00';}
-}
-lastCount=msgs.length;
-logEl.innerHTML='';
- msgs.slice().reverse().forEach(m=>{
-        let div=document.createElement('div');
-        div.className='bubble';
-        div.innerHTML=`<span><b>${m.user}</b> • ${new Date(m.time*1000).toLocaleTimeString()}</span><br><audio controls src="${m.audioUrl}" style="width:90px;height:25px;"></audio>`;
-        logEl.appendChild(div);
-    });
-}
-setInterval(fetchFeed,1200);
-fetchFeed();
+    <!-- 5. OUKITEL PTT HARDWARE INTERFACES -->
+    <div class="ptt-container">
+        <button id="pttBtn" onmousedown="startTx()" onmouseup="stopTx()" ontouchstart="startTx()" ontouchend="stopTx()" class="ptt-circle-btn">
+            🎙️
+        </button>
+        <span class="ptt-label">HOLD TO TALK - OUKITEL WP61 Plus Style</span>
+    </div>
 
-async function startTx(){
-let stream=await navigator.mediaDevices.getUserMedia({audio:true});
-mediaRecorder=new MediaRecorder(stream);
-chunks=[];
-mediaRecorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
-mediaRecorder.onstop=async()=>{
-  statusEl.innerText='SENDING...';
-  let blob=new Blob(chunks,{type:'audio/webm'});
-  let fd=new FormData();
-  fd.append('audio',blob,'tx.webm');
-  fd.append('channel',currentChannel);
-  fd.append('user','ZPS-'+Math.floor(Math.random()*89+10));
-  await fetch('/api/radio/upload', {method: 'POST',body:fd});
-  statusEl.innerText='IDLE';
-  fetchFeed();
-};
-mediaRecorder.start();
-statusEl.innerText='TRANSMITTING TX 🔴';
-statusEl.style.background='red';
-document.getElementById('pttBtn').style.background='red';
-}
-function stopTx(){
-if(mediaRecorder && mediaRecorder.state=='recording'){
-  mediaRecorder.stop();
-  document.getElementById('pttBtn').style.background='#ff8c00';
-}
-}
-const ptt=document.getElementById('pttBtn');
-ptt.addEventListener('mousedown',startTx);
-ptt.addEventListener('mouseup',stopTx);
-ptt.addEventListener('touchstart',e=>{e.preventDefault();startTx();},{passive:false});
-ptt.addEventListener('touchend',e=>{e.preventDefault();stopTx();});
-</script>
-</body>
-</html>
+    <!-- 6. AUTHORITATIVE FOOTER -->
+    <div class="dev-footer">
+        Designed & Developed by <a href="#" class="dev-highlight">Mkhwanazi</a>
+        <br>
+        <span style="font-size: 10px; color: #444;">Engine: Spark | © 2026 ZPS</span>
+    </div>
+
+    <!-- CONTROL AND MAP PLOTTING SCRIPTS -->
+    <script>
+        let mediaRecorder;
+        let chunks = [];
+        let currentChannel = "1";
+        const logEl = document.getElementById('logEl');
+        const statusBadge = document.getElementById('statusBadge');
+        const channelSelect = document.getElementById('channelSelect');
+        const chDisplay = document.getElementById('chDisplay');
+
+        // Initialize embedded Dark-Themed tactical map tracking nodes
+        let hqMap = L.map('hqMap').setView([-25.5851, 27.9730], 12);
+        L.tileLayer('https://{s}://{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(hqMap);
+       
+        let userMarkers = {};
+
+        channelSelect.onchange = (e) => {
+            currentChannel = e.target.value;
+            chDisplay.innerText = e.target.value === 'ch_all' ? "Channel ALL - Emergency" : `Channel ${currentChannel} - PATROL`;
+            let unlock = new Audio(); unlock.play().catch(()=>{});
+            fetchFeed();
+        };
+
+        // Real-Time Radio Feed and Map Position Syncing Loop
+        async function fetchFeed() {
+            try {
+                let res = await fetch(`/api/radio/feed?channel=${currentChannel}`);
+                let msgs = await res.json();
+               
+                if(msgs.length > 0) logEl.innerHTML = '';
+                msgs.slice().reverse().forEach(m => {
+                    let div = document.createElement('div');
+                    div.className = (m.type === 'CLIENT_SOS' || m.status === 'EMERGENCY_SOS') ? 'feed-item panic-alert' : 'feed-item';
+                   
+                    if (m.audioUrl) {
+                        div.innerHTML = `<div class="feed-meta"><span><b>${m.user}</b> • RX</span><span>${new Date(m.time * 1000).toLocaleTimeString()}</span></div><audio controls src="${m.audioUrl}"></audio>`;
+                    } else {
+                        div.innerHTML = `<div class="feed-meta"><span><b>${m.user}</b></span><span>${new Date().toLocaleTimeString()}</span></div><div>${m.text}</div>`;
+                    }
+                    logEl.appendChild(div);
+                });
+
+                // Pull client coordinates dynamically and relocate pins on map
+                let locRes = await fetch('/get_locations');
+                let locs = await locRes.json();
+               
+                for (let user in locs) {
+                    let data = locs[user];
