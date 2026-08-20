@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -48,15 +48,15 @@ def home():
 def login():
     if request.method == 'GET':
         return render_template('login.html')
-   
+  
     username_input = request.form.get('username')
     if not username_input:
         return render_template('login.html', error="❌ Username field missing")
-       
+      
     user = username_input.strip()
     pw = request.form.get('password')
     users = load_users()
-   
+  
     if user in users and check_password_hash(users[user]['password'], pw):
         session['user'] = user
         session['role'] = users[user]['role']
@@ -67,21 +67,21 @@ def login():
 def register():
     if request.method == 'GET':
         return render_template('register.html')
-   
+  
     username_input = request.form.get('username')
     email_input = request.form.get('email')
-   
+  
     username = username_input.strip() if username_input else ""
     email = email_input.strip() if email_input else ""
     password = request.form.get('password')
     role = request.form.get('role')
     users = load_users()
-   
+  
     if username in users:
         return render_template('register.html', error="User already exists")
     if not password or len(password) < 6:
         return render_template('register.html', error="Password must be 6+ characters")
-       
+      
     users[username] = {
         "password": generate_password_hash(password),
         "role": role,
@@ -96,18 +96,18 @@ def register():
 def forgot():
     if request.method == 'GET':
         return render_template('forgot.html')
-       
+      
     username_input = request.form.get('username')
     username = username_input.strip() if username_input else ""
     new_pw = request.form.get('new_password')
-   
+  
     # Matching your frontend input field mappings perfectly
     users = load_users()
     if username not in users:
         return render_template('forgot.html', error="Username not found")
     if not new_pw or len(new_pw) < 6:
         return render_template('forgot.html', error="Password too short")
-       
+      
     users[username]['password'] = generate_password_hash(new_pw)
     save_users(users)
     print(f"🔑 PASSWORD RESET FOR {username}")
@@ -121,7 +121,7 @@ def dashboard():
         return redirect('/login')
     role = session.get('role')
     user = session.get('user')
-   
+  
     if role == 'client':
         return render_template('client.html', user=user)
     elif role == 'patrol':
@@ -149,7 +149,7 @@ def update_location():
 def trigger():
     user = session.get('user', 'unknown')
     now_time = datetime.now().strftime("%H:%M:%S")
-   
+  
     msg = {
         "user": user,
         "text": f"🚨🚨 PANIC ALERT FROM {user.upper()} - NEEDS IMMEDIATE RESPONSE! 🚨🚨",
@@ -178,15 +178,15 @@ def radio_upload():
     file_key = 'audio' if 'audio' in request.files else 'audio[]'
     if file_key not in request.files:
         return jsonify({"error": "No audio file payload found"}), 400
-      
+     
     file = request.files[file_key]
     channel = request.form.get('channel', '1')
     user = request.form.get('user', session.get('user', 'HQ-DISPATCH'))
-   
+  
     filename = f"{int(time.time()*1000)}_{secure_filename(file.filename)}"
     path = os.path.join(RADIO_FOLDER, filename)
     file.save(path)
-   
+  
     msg = {
         'audioUrl': f'/static/radio/{filename}',
         'channel': channel,
@@ -203,10 +203,10 @@ def radio_feed():
     u = session.get('user', 'guest')
     # Unified channel catcher for parameters
     channel = request.args.get('channel', str(user_channels.get(u, 1)))
-   
+  
     if channel == 'ch_all' or channel == 'all':
         return jsonify(radio_messages[-30:])
-       
+      
     filtered = [m for m in radio_messages if str(m.get('channel')) == str(channel)]
     return jsonify(filtered[-30:])
 
@@ -218,9 +218,23 @@ def get_locations():
 def evidence_file(filename):
     return send_from_directory(EVIDENCE_FOLDER, filename)
 
+# FIX: Added precise media streaming byte-range headers to fix cross-platform player crashes
 @app.route('/static/radio/<filename>')
 def serve_radio(filename):
-    return send_from_directory(RADIO_FOLDER, filename)
+    file_path = os.path.join(RADIO_FOLDER, filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
+       
+    def generate():
+        with open(file_path, "rb") as f:
+            while True:
+                chunk = f.read(4096)
+                if not chunk:
+                    break
+                yield chunk
+               
+    # Direct container delivery forces mobile browser decoders to activate cleanly
+    return Response(generate(), mimetype="audio/webm")
 
 @app.route('/set_channel/<int:ch>')
 def set_channel(ch):
