@@ -1,199 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZPS - Developer Panel</title>
-    <style>
-        body {
-            background-color: #0d0f12;
-            color: #c5c6c7;
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            padding: 12px;
-            box-sizing: border-box;
-        }
-        .dev-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #1f2833;
-            border-bottom: 2px solid #3498db;
-            padding: 10px 15px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-        .portal-title {
-            color: #3498db;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        .logout-link {
-            color: #ff4d4d;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .panel-card {
-            background: #11161d;
-            border: 1px solid #232d38;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        .section-title {
-            color: #ffd700;
-            font-size: 14px;
-            margin: 0 0 10px 0;
-            text-transform: uppercase;
-        }
-        .data-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            font-size: 12px;
-        }
-        .data-item {
-            background: #1c232d;
-            border-left: 3px solid #3498db;
-            padding: 8px 12px;
-            margin-bottom: 6px;
-            border-radius: 4px;
-        }
-        .audio-wrapper {
-            margin-top: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        audio {
-            height: 28px;
-            width: 100%;
-            max-width: 240px;
-        }
-        .btn-download {
-            color: #3498db;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 11px;
-        }
-        /* Custom Settings Integration Block */
-        .config-controls {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .action-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            font-family: monospace;
-            font-weight: bold;
-            font-size: 11px;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        .btn-save { background-color: #2e7d32; color: #fff; }
-        .btn-delete { background-color: #c62828; color: #fff; }
-       
-        .footer-panel {
-            text-align: center;
-            background: #11161d;
-            border: 1px solid #1f2833;
-            border-radius: 6px;
-            padding: 12px;
-            font-size: 11px;
-            color: #657786;
-            margin-top: 15px;
-        }
-        .footer-highlight { color: #3498db; font-weight: bold; text-decoration: none; }
-    </style>
-</head>
-<body>
+<!DOCTYPE html><html><head><title>ZONDI DEV LIVE</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{background:#000;color:#FFD700;font-family:monospace;padding:10px}
+.card{background:#111;border:1px solid #333;padding:8px;margin:5px 0;border-radius:6px;color:#fff}
+.top{background:#222;padding:10px;display:flex;justify-content:space-between;border-radius:6px}
+a{color:cyan}
+</style></head><body>
+<div class="top"><span>👨‍💻 DEV PANEL LIVE - {{user}}</span><span><a href="/dashboard">HQ MAP</a> | <a href="/logout">Logout</a></span></div>
 
-    <!-- 1. SYSTEM NAVIGATION HEADER -->
-    <div class="dev-header">
-        <span class="portal-title">ZONDI DEV</span>
-        <span class="portal-title">## 👨💻 DEVELOPER PANEL <a href="/logout" class="logout-link">Logout</a></span>
-    </div>
+<h3>📍 Live GPS - Auto Refresh (2 sec)</h3>
+<div id="gps"><p>Waiting for clients...</p></div>
 
-    <!-- NEW CONTROL MATRIX AREA: REQUESTED SAVE & DELETE OPTIONS -->
-    <div class="panel-card">
-        <h3 class="section-title">⚙️ Terminal Control Settings</h3>
-        <div style="font-size: 11px; color: #8b9bb4; margin-bottom: 8px;">
-            Manage layout structure parameters and profile states:
-        </div>
-        <div class="config-controls">
-            <button onclick="saveDevOptions()" class="btn-save action-btn">💾 Save Options</button>
-            <button onclick="deleteDevCache()" class="btn-delete action-btn">🗑️ Delete Cache</button>
-        </div>
-    </div>
+<h3>📁 Evidence & Radio Files</h3>
+<div id="files"></div>
 
-    <!-- 2. LIVE GPS DATA MONITOR (JINJA BINDINGS PROTECTED) -->
-    <div class="panel-card">
-        <h3 class="section-title">### 📍 Live GPS</h3>
-        <ul class="data-list">
-            {% for u,l in locations.items() %}
-            <li class="data-item">
-                📡 <b>{{u}}</b>: {{l.lat}}, {{l.lng}} at {{l.time}}
-            </li>
-            {% else %}
-            <li class="data-item" style="border-left-color: #e60000; color: #ff4d4d;">
-                ⚠️ No GPS yet
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
+<h3>📻 Radio Log - Live</h3>
+<div id="log" style="background:#111;padding:10px;height:350px;overflow:auto"></div>
 
-    <!-- 3. EVIDENCE AUDITING MATRIX (JINJA BINDINGS PROTECTED) -->
-    <div class="panel-card">
-        <h3 class="section-title">### 📁 Evidence & Radio Files</h3>
-        <ul class="data-list">
-            {% for f in files %}
-            <li class="data-item">
-                🎵 File: <b>{{f}}</b>
-                <div class="audio-wrapper">
-                    <!-- Added functional audio player nodes connected to paths -->
-                    <audio controls src="/static/radio/{{f}}"></audio>
-                    <a href="/static/radio/{{f}}" download class="btn-download">DOWNLOAD</a>
-                </div>
-            </li>
-            {% else %}
-            <li class="data-item" style="border-left-color: #ff8c00; color: #ff8c00;">
-                ℹ️ No evidence yet - trigger panic on client
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
+<script>
+let allFiles={{files|tojson if files is defined else []}};
 
-    <!-- 4. LOG DUMP PIPELINE PLACEHOLDER -->
-    <div class="panel-card">
-        <h3 class="section-title">### 📻 Radio Log (JSON)</h3>
-        <div style="font-family: monospace; font-size: 11px; color: #39ff14; background: #05070a; padding: 10px; border-radius: 4px; max-height: 100px; overflow-y: auto;">
-            [SYSTEM_INFO] Radio logging buffer streaming online... All logs synchronized.
-        </div>
-    </div>
+async function refresh(){
+  try{
+    let r1=await fetch('/get_clients'); let locs=await r1.json();
+    let gps=document.getElementById('gps'); gps.innerHTML='';
+    for(let u in locs){
+      let l=locs[u]; if(!l.lat) continue;
+      gps.innerHTML+=`<div class="card"><b>${u}</b>: ${l.lat.toFixed(5)},${l.lng.toFixed(5)} at ${l.time} ${l.panic?'🚨 PANIC':''} <a href="https://maps.google.com/?q=${l.lat},${l.lng}" target="_blank">MAP</a></div>`;
+    }
+    if(Object.keys(locs).length==0) gps.innerHTML='<p>No GPS yet - client must open /client and ALLOW location</p>';
 
-    <!-- 5. SIGNATURE DESIGN PANEL -->
-    <div class="footer-panel">
-        Designed & Developed by <a href="#" class="footer-highlight">Mkhwanazi</a>
-        <br>
-        <span style="color: #444; font-size: 10px; display: inline-block; margin-top: 4px;">Engine: Spark | © 2026 ZPS</span>
-    </div>
+    let r2=await fetch('/get_radio'); let msgs=await r2.json();
+    let log=document.getElementById('log'); log.innerHTML='';
+    msgs.slice().reverse().forEach(m=>{
+      let src=m.audioUrl||(m.file?`/evidence/${m.file}`:'');
+      log.innerHTML+=`<div class="card">${m.time} - <b>${m.user}</b> CH${m.channel||1}: ${m.text||''} ${m.file?`<br><audio controls preload="metadata" src="${src}" style="width:100%"></audio><br><a href="${src}" target="_blank">DOWNLOAD ${m.file}</a>`:''}</div>`;
+    });
+  }catch(e){console.log(e);}
+}
 
-    <!-- PERSISTENCE CONTROLS LOGIC ENGINE -->
-    <script>
-        function saveDevOptions() {
-            localStorage.setItem('dev_portal_saved', 'true');
-            alert("Developer portal setup and layout options saved successfully.");
-        }
+setInterval(refresh,2000); refresh();
 
-        function deleteDevCache() {
-            if (confirm("Are you sure you want to delete stored token buffers and reset developer states?")) {
-                localStorage.removeItem('dev_portal_saved');
-                alert("Cache profiles wiped cleanly.");
-            }
-        }
-    </script>
-</body>
-</html>
+let fd=document.getElementById('files');
+if(!allFiles || allFiles.length==0) fd.innerHTML='<p>No files yet - talk on radio or trigger panic</p>';
+else fd.innerHTML=allFiles.map(f=>`<div class="card">${f}<br><audio controls preload="metadata" src="/evidence/${f}" style="width:100%"></audio><br><a href="/evidence/${f}" target="_blank">PLAY</a> | <a href="/static/evidence/${f}" target="_blank">Alt Link</a></div>`).join('');
+</script>
+</body></html>
