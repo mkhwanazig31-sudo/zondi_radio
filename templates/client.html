@@ -255,7 +255,6 @@ function switchTab(tabName) {
   event.target.classList.add('active');
 }
 
-// ===== CAMERA FUNCTIONS =====
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -317,7 +316,6 @@ async function uploadVideo() {
   }
 }
 
-// ===== LOCATION FUNCTIONS =====
 function startTracking() {
   if (!navigator.geolocation) {
     updateStatus('Geolocation not supported', 'error', 'location');
@@ -375,7 +373,6 @@ function updateLocationDisplay(pos) {
   document.getElementById('mapLink').href = `https://maps.google.com/maps?q=${lat},${lng}`;
 }
 
-// ===== PANIC FUNCTION =====
 async function triggerPanic() {
   try {
     const res = await fetch('/trigger_panic', { method: 'POST' });
