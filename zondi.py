@@ -23,14 +23,16 @@ USERS_FILE = "users.json"
 
 def load_users():
     if not os.path.exists(USERS_FILE):
-        default = {
-            "client01": {"password": generate_password_hash("client123"), "role": "client", "email": "client@zps.co.za"},
-            "patrol01": {"password": generate_password_hash("patrol123"), "role": "patrol", "email": "patrol@zps.co.za"},
-            "zondi_dev": {"password": generate_password_hash("zondi123"), "role": "dev", "email": "dev@zps.co.za"}
-        }
-        with open(USERS_FILE, 'w') as f: json.dump(default, f, indent=2)
-        return default
-    with open(USERS_FILE, 'r') as f: return json.load(f)
+        return {}
+    try:
+        with open(USERS_FILE, 'r') as f:
+            data = json.load(f)
+            # if file is empty, don't overwrite with defaults
+            if not data:
+                return {}
+            return data
+    except:
+        return {}
 
 def save_users(users):
     with open(USERS_FILE, 'w') as f: json.dump(users, f, indent=2)
