@@ -151,13 +151,15 @@ def trigger():
 
 @app.route('/upload_evidence', methods=['POST'])
 def upload_evidence():
+    video = request.files.get('video')
     user = session.get('user','unknown')
-    if 'video' in request.files:
-        f = request.files['video']
-        name = f"ZONDI_{user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
-        f.save(os.path.join("evidence", name))
-        return jsonify({"saved": name})
-    return jsonify({"error":"no video"})
+    if video:
+        fname = f"PANIC_{user}_{int(time.time())}.webm"
+        path = os.path.join(EVIDENCE, fname)
+        video.save(path)
+        print(f"✅ Evidence saved to dev: {path}")
+        return jsonify(ok=True, file=fname)
+    return jsonify(error="no video"),400
 
 @app.route('/send_radio', methods=['POST'])
 def send_radio():
