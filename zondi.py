@@ -200,7 +200,23 @@ def set_channel(ch):
     user_channels[user] = ch
     socketio.emit('channel_changed', {'user': user, 'channel': ch}, broadcast=True)
     return 'ok'
-
+    
+@app.route('/upload_radio', methods=['POST'])
+def upload_radio():
+    if 'radio' not in request.files:
+        return jsonify(ok=False)
+    f = request.files['radio']
+    ch = int(request.form.get('channel', 1))
+    user = session.get('user', 'unknown')
+    fname = f"RADIO_CH{ch}_{user}_{int(time.time())}.webm"
+    path = os.path.join(EVIDENCE, fname)
+    f.save(path)
+    now = datetime.now().strftime("%H:%M:%S")
+    msg = {"user": user, "text": "🎙️ Voice message", "type": "audio", "channel": ch, "time": now, "file": fname}
+    radio_messages.append(msg)
+    socketio.emit('new_radio', {"channel": ch, "msg": msg}, broadcast=True)
+    return jsonify(ok=True, file=fname)
+    
 @app.route('/get_radio')
 def get_radio():
     u = session.get('user', 'guest')
