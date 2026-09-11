@@ -1,40 +1,30 @@
 <!DOCTYPE html>
-<html>
-<head>
-<title>ZONDI - HQ</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<html><head><title>ZONDI - HQ</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#000;color:#00ff00;font-family:monospace;padding:10px}
-.top{background:#111;border:2px solid #00ff00;padding:10px;border-radius:6px;display:flex;justify-content:space-between}
-#map{height:380px;border:2px solid #333;border-radius:6px;margin:10px 0}
-.channels{display:flex;gap:5px;margin:10px 0}
-.channels button{flex:1;padding:12px;background:#111;color:#00ff00;border:2px solid #333;border-radius:6px;cursor:pointer}
-.channels button.active{background:#00ff00;color:#000}
-#ptt{width:100%;padding:25px;background:#ff0000;color:white;border:none;border-radius:12px;font-size:20px;font-weight:bold}
-#ptt.active{background:#00ff00;color:#000}
-.card{background:#111;border:1px solid #333;padding:10px;border-radius:6px;margin:10px 0}
-.panic{border-color:#ff0000;color:#ff0000;animation:blink 1s infinite}
-@keyframes blink{50%{opacity:0.5}}
-</style>
-</head>
-<body>
-<div class="top"><h2>📡 HQ - {{user}}</h2><div><span id="usersOnline">0 online</span> | <a href="/logout" style="color:cyan">Logout</a></div></div>
-
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#0f0;font-family:monospace;padding:8px}.top{background:#111;border:2px solid #0f0;padding:10px;border-radius:6px;display:flex;justify-content:space-between}#map{height:340px;border:2px solid #333;border-radius:6px;margin:10px 0}.chs{display:flex;gap:5px}.chs button{flex:1;padding:12px;background:#111;color:#0f0;border:2px solid #333;border-radius:6px}.chs button.active{background:#0f0;color:#000}#ptt{width:100%;padding:22px;background:#f00;color:#fff;border:none;border-radius:12px;font-size:20px;font-weight:bold;margin:10px 0}.card{background:#111;border:1px solid #333;padding:10px;border-radius:6px;margin:8px 0}</style></head><body>
+<div class="top"><h2>📡 HQ - {{user}}</h2><div><span id="online">0 online</span> | <a href="/logout" style="color:cyan">Logout</a></div></div>
 <div id="map"></div>
-
-<div class="channels">
-<button id="ch1" class="active" onclick="setCh(1)">CH1 Patrol</button>
-<button id="ch2" onclick="setCh(2)">CH2 Tactical</button>
-<button id="ch3" onclick="setCh(3)">CH3 Command</button>
-<button id="ch4" onclick="setCh(4)">CH4</button>
-<button id="ch5" onclick="setCh(5)">CH5</button>
-</div>
-<div id="chStatus" style="text-align:center;color:#888">Current: Channel 1</div>
-
+<div class="chs"><button id="ch1" class="active" onclick="setCh(1)">CH1 Patrol</button><button id="ch2" onclick="setCh(2)">CH2 Tactical</button><button id="ch3" onclick="setCh(3)">CH3 Command</button><button id="ch4" onclick="setCh(4)">CH4</button><button id="ch5" onclick="setCh(5)">CH5</button></div>
+<div style="text-align:center;color:#888" id="chStatus">Channel 1</div>
+<button id="ptt" onmousedown="startPTT()" onmouseup="stopPTT()" ontouchstart="startPTT();return false" ontouchend="stopPTT();return false">🎙️ HOLD TO TALK</button>
+<div id="panicBox"></div>
+<div class="card"><h3>🎧 Radio Log (Channel <span id="chNum">1</span>)</h3><div id="radioLog"></div></div>
+<div class="card"><h3>📍 Live Units</h3><div id="unitList">Waiting for clients...</div></div>
+<script>
+const socket=io();let map=L.map('map').setView([-28.78,31.44],10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let markers={},currentCh=1,recorder,chunks=[],isRec=false;
+function setCh(ch){currentCh=ch;document.querySelectorAll('.chs button').forEach(b=>b.classList.remove('active'));document.getElementById('ch'+ch).classList.add('active');document.getElementById('chStatus').innerText='Channel '+ch;document.getElementById('chNum').innerText=ch;fetch('/set_channel/'+ch);loadRadio();}
+async function startPTT(){if(isRec)return;isRec=true;document.getElementById('ptt').innerText='🔴 TRANSMITTING ON CH'+currentCh;chunks=[];try{let s=await navigator.mediaDevices.getUserMedia({audio:true});recorder=new MediaRecorder(s);recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=async()=>{let blob=new Blob(chunks,{type:'audio/webm'});let fd=new FormData();fd.append('radio',blob,'voice.webm');fd.append('channel',currentCh);let r=await fetch('/upload_radio',{method:'POST',body:fd});console.log(await r.json());};recorder.start();socket.emit('ptt_start',{channel:currentCh});}catch(e){alert('Mic blocked: '+e);isRec=false;}}
+async function stopPTT(){if(!isRec)return;isRec=false;document.getElementById('ptt').innerText='🎙️ HOLD TO TALK';if(recorder){recorder.stop();recorder.stream.getTracks().forEach(t=>t.stop());}socket.emit('ptt_end',{channel:currentCh});}
+function addRadioMsg(m,autoplay=false){let div=document.createElement('div');div.style.cssText='border-left:3px solid '+(m.type=='panic'?'red':'#0f0')+';padding:6px;margin:4px;background:#000';let audioHtml=m.file?`<br><audio controls ${autoplay?'autoplay':''} src="/evidence/${m.file}" style="width:100%"></audio>`:'';
+div.innerHTML=`${m.time} <b>${m.user}</b> CH${m.channel} ${m.text||''} ${audioHtml}`;document.getElementById('radioLog').prepend(div);if(autoplay&&m.file){let a=div.querySelector('audio');a.play().catch(()=>{});}}
+async function loadRadio(){let r=await fetch('/get_radio');let msgs=await r.json();document.getElementById('radioLog').innerHTML='';msgs.slice(-15).reverse().forEach(m=>addRadioMsg(m,false));}
+socket.on('new_radio',data=>{if(data.channel==currentCh){addRadioMsg(data.msg,true);}});
+socket.on('location_update',d=>{let locs={};if(d.user)locs[d.user]=d.location;else locs=d;let html='';for(let u in locs){let l=locs[u].location||locs[u];if(!l.lat)continue;if(!markers[u])markers[u]=L.marker([l.lat,l.lng]).addTo(map).bindPopup(u);else markers[u].setLatLng([l.lat,l.lng]);html+=`● ${u} ${l.lat.toFixed(4)},${l.lng.toFixed(4)} ${l.time||''}<br>`;}if(html)document.getElementById('unitList').innerHTML=html;});
+socket.on('panic_alert',d=>{document.getElementById('panicBox').innerHTML=`<div class="card" style="border:2px solid red;color:red">🚨 PANIC ${d.user} ${d.time} <a href="https://maps.google.com/maps?q=${d.location.lat},${d.location.lng}" target="_blank" style="color:red">MAP</a></div>`+document.getElementById('panicBox').innerHTML;let au=new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');au.play().catch(()=>{});});
+setCh(1);setInterval(loadRadio,4000);
+</script></body></html>
 <button id="ptt" onmousedown="startPTT()" onmouseup="stopPTT()" ontouchstart="startPTT()" ontouchend="stopPTT()">🎙️ HOLD TO TALK</button>
 
 <div id="panicBox"></div>
