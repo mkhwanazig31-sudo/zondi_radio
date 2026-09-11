@@ -1,47 +1,331 @@
-<!DOCTYPE html><html><head><title>ZONDI DEV LIVE</title><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{background:#000;color:#FFD700;font-family:monospace;padding:10px}
-.card{background:#111;border:1px solid #333;padding:8px;margin:5px 0;border-radius:6px;color:#fff}
-.top{background:#222;padding:10px;display:flex;justify-content:space-between;border-radius:6px}
-a{color:cyan}
-</style></head><body>
-<div class="top"><span>👨‍💻 DEV PANEL LIVE - {{user}}</span><span><a href="/dashboard">HQ MAP</a> | <a href="/logout">Logout</a></span></div>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ZONDI DEV LIVE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #FFD700;
+      font-family: monospace;
+      padding: 10px;
+    }
+    .top {
+      background: #222;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      border: 2px solid #333;
+    }
+    a { color: cyan; text-decoration: none; }
+    a:hover { text-decoration: underline; }
 
-<h3>📍 Live GPS - Auto Refresh (2 sec)</h3>
-<div id="gps"><p>Waiting for clients...</p></div>
+    .tabs-container {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #333;
+    }
+    .tab-button {
+      background: #111;
+      color: #FFD700;
+      border: 2px solid #333;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      font-family: monospace;
+      font-size: 13px;
+      transition: all 0.3s;
+    }
+    .tab-button:hover {
+      background: #222;
+      border-color: #FFD700;
+    }
+    .tab-button.active {
+      background: #FFD700;
+      color: #000;
+      border-color: #FFD700;
+    }
 
-<h3>📁 Evidence & Radio Files</h3>
-<div id="files"></div>
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
 
-<h3>📻 Radio Log - Live</h3>
-<div id="log" style="background:#111;padding:10px;height:350px;overflow:auto"></div>
+    .card {
+      background: #111;
+      border: 1px solid #333;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      color: #fff;
+    }
+    .card-title {
+      color: #FFD700;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .card-subtitle {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    audio {
+      width: 100%;
+      margin-top: 5px;
+    }
+
+    #gps-list {
+      background: #0a0a0a;
+      padding: 10px;
+      border-radius: 6px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .location-card {
+      background: #111;
+      border-left: 3px solid #FFD700;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 4px;
+    }
+
+    #files-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 10px;
+    }
+    .file-card {
+      background: #111;
+      border: 1px solid #333;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .file-name {
+      color: #FFD700;
+      font-size: 12px;
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+
+    .empty-message {
+      color: #666;
+      text-align: center;
+      padding: 20px;
+      font-style: italic;
+    }
+
+    h3 {
+      color: #FFD700;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
+    }
+
+    .refresh-info {
+      color: #666;
+      font-size: 11px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="top">
+  <span>👨‍💻 DEV PANEL LIVE - {{user}}</span>
+  <div>
+    <a href="/dashboard">🗺️ HQ MAP</a> | 
+    <a href="/dev/logout">🔓 Logout</a>
+  </div>
+</div>
+
+<!-- TAB BUTTONS -->
+<div class="tabs-container">
+  <button class="tab-button active" onclick="switchTab('locations')">📍 Live Locations</button>
+  <button class="tab-button" onclick="switchTab('patrol-audio')">📻 Patrol Audios</button>
+  <button class="tab-button" onclick="switchTab('client-evidence')">📹 Client Evidence</button>
+  <button class="tab-button" onclick="switchTab('all-radio')">💬 All Radio Log</button>
+</div>
+
+<!-- TAB 1: LIVE LOCATIONS -->
+<div id="locations" class="tab-content active">
+  <h3>📍 Live GPS Tracking - Auto Refresh (2 sec)</h3>
+  <div id="gps-list"></div>
+  <div class="refresh-info">⚠️ Clients must allow location permission</div>
+</div>
+
+<!-- TAB 2: PATROL AUDIOS -->
+<div id="patrol-audio" class="tab-content">
+  <h3>📻 Patrol Radio Audios</h3>
+  <div id="patrol-container"></div>
+  <div class="refresh-info">🔄 Refreshes every 2 seconds</div>
+</div>
+
+<!-- TAB 3: CLIENT EVIDENCE -->
+<div id="client-evidence" class="tab-content">
+  <h3>📹 Client Evidence Files</h3>
+  <div id="files-container"></div>
+  <div class="refresh-info">📁 Stored evidence from panic alerts</div>
+</div>
+
+<!-- TAB 4: ALL RADIO LOG -->
+<div id="all-radio" class="tab-content">
+  <h3>💬 Complete Radio Log</h3>
+  <div id="radio-log" style="background:#0a0a0a;padding:10px;border-radius:6px;height:400px;overflow-y:auto;"></div>
+  <div class="refresh-info">🔄 Last 30 messages - Auto refresh every 2 seconds</div>
+</div>
 
 <script>
-let allFiles={{files|tojson if files is defined else []}};
+let allFiles = {{files|tojson if files is defined else []}};
 
-async function refresh(){
-  try{
-    let r1=await fetch('/get_clients'); let locs=await r1.json();
-    let gps=document.getElementById('gps'); gps.innerHTML='';
-    for(let u in locs){
-      let l=locs[u]; if(!l.lat) continue;
-      gps.innerHTML+=`<div class="card"><b>${u}</b>: ${l.lat.toFixed(5)},${l.lng.toFixed(5)} at ${l.time} ${l.panic?'🚨 PANIC':''} <a href="https://maps.google.com/?q=${l.lat},${l.lng}" target="_blank">MAP</a></div>`;
-    }
-    if(Object.keys(locs).length==0) gps.innerHTML='<p>No GPS yet - client must open /client and ALLOW location</p>';
-
-    let r2=await fetch('/get_radio'); let msgs=await r2.json();
-    let log=document.getElementById('log'); log.innerHTML='';
-    msgs.slice().reverse().forEach(m=>{
-      let src=m.audioUrl||(m.file?`/evidence/${m.file}`:'');
-      log.innerHTML+=`<div class="card">${m.time} - <b>${m.user}</b> CH${m.channel||1}: ${m.text||''} ${m.file?`<br><audio controls preload="metadata" src="${src}" style="width:100%"></audio><br><a href="${src}" target="_blank">DOWNLOAD ${m.file}</a>`:''}</div>`;
-    });
-  }catch(e){console.log(e);}
+function switchTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  // Deactivate all buttons
+  document.querySelectorAll('.tab-button').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Show selected tab
+  document.getElementById(tabName).classList.add('active');
+  // Activate selected button
+  event.target.classList.add('active');
 }
 
-setInterval(refresh,2000); refresh();
+async function refreshData() {
+  try {
+    // Get locations
+    let locRes = await fetch('/get_locations');
+    let locations = await locRes.json();
+    updateLocationsTab(locations);
 
-let fd=document.getElementById('files');
-if(!allFiles || allFiles.length==0) fd.innerHTML='<p>No files yet - talk on radio or trigger panic</p>';
-else fd.innerHTML=allFiles.map(f=>`<div class="card">${f}<br><audio controls preload="metadata" src="/evidence/${f}" style="width:100%"></audio><br><a href="/evidence/${f}" target="_blank">PLAY</a> | <a href="/static/evidence/${f}" target="_blank">Alt Link</a></div>`).join('');
+    // Get radio messages
+    let radioRes = await fetch('/get_radio');
+    let radioMsgs = await radioRes.json();
+    updateRadioTabs(radioMsgs);
+
+    // Update files
+    updateFilesTab();
+  } catch (e) {
+    console.error('Refresh error:', e);
+  }
+}
+
+function updateLocationsTab(locations) {
+  let gpsList = document.getElementById('gps-list');
+  gpsList.innerHTML = '';
+  
+  let count = 0;
+  for (let user in locations) {
+    let loc = locations[user];
+    if (!loc.lat) continue;
+    count++;
+    
+    let mapsUrl = `https://maps.google.com/?q=${loc.lat},${loc.lng}`;
+    gpsList.innerHTML += `
+      <div class="location-card">
+        <div class="card-title">👤 ${user}</div>
+        <div class="card-subtitle">
+          📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}
+        </div>
+        <div class="card-subtitle">⏰ ${loc.time}</div>
+        ${loc.panic ? '<div style="color: #ff4444;">🚨 PANIC ALERT ACTIVE</div>' : ''}
+        <a href="${mapsUrl}" target="_blank" style="font-size: 12px;">🗺️ View on Google Maps</a>
+      </div>
+    `;
+  }
+  
+  if (count === 0) {
+    gpsList.innerHTML = '<div class="empty-message">No active client locations yet</div>';
+  }
+}
+
+function updateRadioTabs(radioMsgs) {
+  let patrolContainer = document.getElementById('patrol-container');
+  let allRadioLog = document.getElementById('radio-log');
+  
+  // Filter patrol messages (audio type)
+  let patrolMsgs = radioMsgs.filter(m => m.type === 'audio' || m.file);
+  
+  patrolContainer.innerHTML = '';
+  if (patrolMsgs.length === 0) {
+    patrolContainer.innerHTML = '<div class="empty-message">No patrol audios yet</div>';
+  } else {
+    patrolMsgs.forEach(m => {
+      let src = m.audioUrl || (m.file ? `/evidence/${m.file}` : '');
+      if (src) {
+        patrolContainer.innerHTML += `
+          <div class="card">
+            <div class="card-title">🎙️ ${m.user}</div>
+            <div class="card-subtitle">Ch${m.channel || 1} • ${m.time}</div>
+            ${m.text ? '<div style="margin-bottom: 8px; color: #ccc;">' + m.text + '</div>' : ''}
+            <audio controls preload="metadata" src="${src}"></audio>
+            <a href="${src}" target="_blank" style="font-size: 11px; display: block; margin-top: 5px;">⬇️ Download</a>
+          </div>
+        `;
+      }
+    });
+  }
+
+  // All radio log (reversed for newest first)
+  allRadioLog.innerHTML = '';
+  if (radioMsgs.length === 0) {
+    allRadioLog.innerHTML = '<div class="empty-message">No radio messages yet</div>';
+  } else {
+    radioMsgs.slice().reverse().forEach(m => {
+      let src = m.audioUrl || (m.file ? `/evidence/${m.file}` : '');
+      let msgType = m.type === 'panic' ? '🚨' : '💬';
+      
+      allRadioLog.innerHTML += `
+        <div class="card">
+          <div class="card-title">${msgType} ${m.user}</div>
+          <div class="card-subtitle">Ch${m.channel || 1} • ${m.time}</div>
+          <div style="margin-bottom: 8px; color: #ddd;">${m.text || '(Audio only)'}</div>
+          ${src ? `<audio controls preload="metadata" src="${src}" style="width: 100%;"></audio>` : ''}
+        </div>
+      `;
+    });
+  }
+}
+
+function updateFilesTab() {
+  let container = document.getElementById('files-container');
+  container.innerHTML = '';
+  
+  if (!allFiles || allFiles.length === 0) {
+    container.innerHTML = '<div class="empty-message" style="grid-column: 1/-1;">No evidence files yet</div>';
+  } else {
+    allFiles.forEach(f => {
+      let fileType = f.includes('PANIC') ? '🚨' : '📹';
+      container.innerHTML += `
+        <div class="file-card">
+          <div style="color: #FFD700; font-weight: bold; margin-bottom: 5px;">${fileType} ${f}</div>
+          <audio controls preload="metadata" src="/evidence/${f}" style="width: 100%; margin-bottom: 5px;"></audio>
+          <a href="/evidence/${f}" target="_blank" style="font-size: 11px;">⬇️ Download</a>
+        </div>
+      `;
+    });
+  }
+}
+
+// Initial load and auto-refresh every 2 seconds
+refreshData();
+setInterval(refreshData, 2000);
 </script>
-</body></html>
+
+</body>
+</html>
