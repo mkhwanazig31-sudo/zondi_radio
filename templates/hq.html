@@ -1,92 +1,158 @@
 <!DOCTYPE html>
-<html><head><title>ZPS HQ PATROL LIVE</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<html>
+<head>
+<title>ZONDI - HQ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <style>
-body{background:#000;color:#FFD700;font-family:Arial;margin:0}
-#top{background:#FFD700;color:#000;padding:12px;font-weight:bold;display:flex;justify-content:space-between}
-#map{height:55vh;border:3px solid #FFD700}
-#clients{max-height:20vh;overflow:auto;background:#111;padding:5px}
-.client{background:#222;margin:3px;padding:8px;border-radius:6px;color:#fff;display:flex;justify-content:space-between}
-.panic{border:2px solid red;background:#330000}
-#radio{background:#0f2020;padding:10px}
-.bubble{background:#dcf8c6;color:#000;padding:8px;border-radius:10px;margin:5px 0;display:flex;justify-content:space-between;align-items:center}
-.mic{width:140px;height:140px;background:#ff8c00;border-radius:50%;border:6px solid #fff;margin:12px auto;display:flex;align-items:center;justify-content:center;font-size:45px;cursor:pointer}
-.mic:active{background:red;transform:scale(0.92)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;color:#00ff00;font-family:monospace;padding:10px}
+.top{background:#111;border:2px solid #00ff00;padding:10px;border-radius:6px;display:flex;justify-content:space-between}
+#map{height:380px;border:2px solid #333;border-radius:6px;margin:10px 0}
+.channels{display:flex;gap:5px;margin:10px 0}
+.channels button{flex:1;padding:12px;background:#111;color:#00ff00;border:2px solid #333;border-radius:6px;cursor:pointer}
+.channels button.active{background:#00ff00;color:#000}
+#ptt{width:100%;padding:25px;background:#ff0000;color:white;border:none;border-radius:12px;font-size:20px;font-weight:bold}
+#ptt.active{background:#00ff00;color:#000}
+.card{background:#111;border:1px solid #333;padding:10px;border-radius:6px;margin:10px 0}
+.panic{border-color:#ff0000;color:#ff0000;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:0.5}}
 </style>
-</head><body>
-<div id="top"><span>🚔 HQ LIVE - {{user}}</span><span><a href="/logout" style="color:#000">LOGOUT</a></span></div>
-<div id="map"></div>
-<div id="clients"><p style="padding:10px;color:#aaa">Waiting for clients... client must open /client and allow location</p></div>
+</head>
+<body>
+<div class="top"><h2>📡 HQ - {{user}}</h2><div><span id="usersOnline">0 online</span> | <a href="/logout" style="color:cyan">Logout</a></div></div>
 
-<div id="radio">
-<div style="display:flex;justify-content:space-between"><b>📻 RADIO CH <span id="chNum">1</span> - <span id="status">IDLE</span></b>
-<select id="chSel"><option value="ch1">CH 1 PATROL</option><option value="ch2">CH 2</option><option value="ch_all">CH ALL EMERGENCY</option></select></div>
-<div id="log" style="background:#fff;height:220px;overflow:auto;padding:6px;border-radius:8px;color:#000">Waiting...</div>
-<div class="mic" id="ptt">🎙️</div>
-<div style="text-align:center;font-size:11px;color:#aaa">HOLD TO TALK - Live</div>
-<div id="debug" style="font-size:10px;color:#666;text-align:center"></div>
+<div id="map"></div>
+
+<div class="channels">
+<button id="ch1" class="active" onclick="setCh(1)">CH1 Patrol</button>
+<button id="ch2" onclick="setCh(2)">CH2 Tactical</button>
+<button id="ch3" onclick="setCh(3)">CH3 Command</button>
+<button id="ch4" onclick="setCh(4)">CH4</button>
+<button id="ch5" onclick="setCh(5)">CH5</button>
 </div>
+<div id="chStatus" style="text-align:center;color:#888">Current: Channel 1</div>
+
+<button id="ptt" onmousedown="startPTT()" onmouseup="stopPTT()" ontouchstart="startPTT()" ontouchend="stopPTT()">🎙️ HOLD TO TALK</button>
+
+<div id="panicBox"></div>
+<div class="card"><h3>🎧 Radio Log (Channel <span id="chNum">1</span>)</h3><div id="radioLog" style="max-height:200px;overflow:auto"></div></div>
+<div class="card"><h3>📍 Live Units</h3><div id="unitList"></div></div>
 
 <script>
-let map=L.map('map').setView([-26.2041,28.0473],11);
+const socket = io();
+let map = L.map('map').setView([-28.5, 31.4], 9);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-let markers={}; let curCh='ch1'; let rec,chunks=[]; let lastCount=0; let me="{{user}}";
+let markers = {};
+let currentCh = 1;
+let mediaRecorder, audioChunks, isRecording=false;
 
-async function refreshMap(){
-  let r=await fetch('/get_clients'); let data=await r.json();
-  let list=document.getElementById('clients'); list.innerHTML='';
-  let has=false;
-  for(let u in data){
-    let l=data[u]; if(!l.lat) continue; has=true;
-    let pos=[l.lat,l.lng];
-    if(!markers[u]) markers[u]=L.marker(pos).addTo(map).bindPopup(u);
-    else markers[u].setLatLng(pos);
-    list.innerHTML+=`<div class="client"><span><b>${u}</b> ${l.lat.toFixed(5)},${l.lng.toFixed(5)} ${l.time}</span><a href="https://maps.google.com/?q=${l.lat},${l.lng}" target="_blank" style="color:cyan">MAP</a></div>`;
-  }
-  if(!has) list.innerHTML='<p style="color:#aaa;padding:10px">No clients yet</p>';
+function setCh(ch){
+currentCh = ch;
+document.querySelectorAll('.channels button').forEach(b=>b.classList.remove('active'));
+document.getElementById('ch'+ch).classList.add('active');
+document.getElementById('chStatus').innerText = 'Current: Channel '+ch;
+document.getElementById('chNum').innerText = ch;
+fetch('/set_channel/'+ch);
+loadRadio();
 }
 
-async function refreshRadio(){
-  let r=await fetch(`/get_audios?channel=${curCh}`); let msgs=await r.json();
-  if(msgs.length>lastCount && lastCount!=0){
-    let newest=msgs[msgs.length-1];
-    if(newest.user!==me && newest.audioUrl){
-      let a=new Audio(newest.audioUrl); a.play().catch(()=>{});
-      document.getElementById('status').innerText='RX: '+newest.user;
-      a.onended=()=>{document.getElementById('status').innerText='IDLE';}
+async function loadRadio(){
+let r = await fetch('/get_radio');
+let msgs = await r.json();
+document.getElementById('radioLog').innerHTML = msgs.slice(-20).reverse().map(m=>{
+   let color = m.type=='panic' ? '#ff0000' : '#00ff00';
+   return `<div style="border-left:3px solid ${color};padding:5px;margin:3px;background:#000">${m.time} <b>${m.user}</b>: ${m.text || '🎙️ Voice'} [CH${m.channel}]</div>`
+}).join('');
+}
+
+function updateMap(locations){
+// support both formats from your backend
+let list = document.getElementById('unitList');
+list.innerHTML = '';
+for(let user in locations){
+  let loc = locations[user].location || locations[user];
+  if(!loc.lat) continue;
+  if(!markers[user]){
+    markers[user] = L.marker([loc.lat, loc.lng]).addTo(map).bindPopup(user);
+  } else {
+    markers[user].setLatLng([loc.lat, loc.lng]);
+  }
+  let isPanic = user.includes('PANIC') || loc.panic;
+  list.innerHTML += `<div style="color:${isPanic?'red':'#00ff00'}">● ${user} - ${loc.lat?.toFixed(4)}, ${loc.lng?.toFixed(4)} - ${loc.time||''} ${isPanic?'🚨':''}</div>`;
+}
+}
+
+async function startPTT(){
+if(isRecording) return;
+isRecording=true;
+document.getElementById('ptt').classList.add('active');
+document.getElementById('ptt').innerText='🔴 TRANSMITTING...';
+audioChunks=[];
+try{
+  let stream = await navigator.mediaDevices.getUserMedia({audio:true});
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = e=>{
+    if(e.data.size>0){
+      // live broadcast
+      e.data.arrayBuffer().then(buf=>{
+        // convert to base64 for socket
+        let reader = new FileReader();
+        reader.onloadend = ()=>{ socket.emit('ptt_audio_chunk',{audio:reader.result, channel:currentCh}) };
+        reader.readAsDataURL(e.data);
+      });
+      audioChunks.push(e.data);
     }
-  }
-  lastCount=msgs.length;
-  let log=document.getElementById('log'); log.innerHTML='';
-  msgs.slice().reverse().forEach(m=>{
-    if(!m.audioUrl) return;
-    log.innerHTML+=`<div class="bubble"><span>🔊 <b>${m.user}</b></span><audio controls src="${m.audioUrl}" style="width:90px;height:28px"></audio></div>`;
-  });
-}
-
-document.getElementById('chSel').onchange=e=>{curCh=e.target.value; document.getElementById('chNum').innerText=curCh.replace('ch',''); lastCount=0; refreshRadio();};
-
-async function startTx(){
-  let s=await navigator.mediaDevices.getUserMedia({audio:true});
-  rec=new MediaRecorder(s,{mimeType:'audio/webm;codecs=opus'}); chunks=[];
-  rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
-  rec.onstop=async()=>{
-    let b=new Blob(chunks,{type:'audio/webm'});
-    if(b.size<1500){alert('Hold longer - 2 sec min'); return;}
-    let fd=new FormData(); fd.append('audio',b,'tx.webm'); fd.append('channel',curCh); fd.append('user',me);
-    await fetch('/upload_audio',{method:'POST',body:fd}); refreshRadio();
   };
-  rec.start(); document.getElementById('status').innerText='TX 🔴'; document.getElementById('ptt').style.background='red';
+  mediaRecorder.start(100);
+  socket.emit('ptt_start',{channel:currentCh});
+}catch(err){alert('Mic denied: '+err)}
 }
-function stopTx(){ if(rec&&rec.state=='recording'){ rec.stop(); document.getElementById('ptt').style.background='#ff8c00'; try{rec.stream.getTracks().forEach(t=>t.stop());}catch(e){} } }
 
-let ptt=document.getElementById('ptt');
-ptt.addEventListener('mousedown',startTx); ptt.addEventListener('mouseup',stopTx);
-ptt.addEventListener('touchstart',e=>{e.preventDefault(); startTx();},{passive:false});
-ptt.addEventListener('touchend',e=>{e.preventDefault(); stopTx();});
+function stopPTT(){
+if(!isRecording) return;
+isRecording=false;
+document.getElementById('ptt').classList.remove('active');
+document.getElementById('ptt').innerText='🎙️ HOLD TO TALK';
+if(mediaRecorder){mediaRecorder.stop(); mediaRecorder.stream?.getTracks().forEach(t=>t.stop())}
+socket.emit('ptt_end',{text:'🎙️ Voice message', channel:currentCh});
+}
 
-setInterval(()=>{refreshMap(); refreshRadio();},2000);
-refreshMap(); refreshRadio();
+// SOCKET EVENTS FROM YOUR zondi.py
+socket.on('location_update', data=>{
+// your backend sends {user, location}
+if(data.user && data.location){
+   let tmp={}; tmp[data.user]=data.location; updateMap(tmp);
+} else {
+   updateMap(data);
+}
+});
+
+socket.on('panic_alert', data=>{
+document.getElementById('panicBox').innerHTML = `<div class="card panic">🚨 PANIC FROM ${data.user} at ${data.time}<br>Loc: ${data.location?.lat}, ${data.location?.lng}<br><a href="https://maps.google.com/maps?q=${data.location?.lat},${data.location?.lng}" target="_blank" style="color:red">VIEW MAP</a></div>` + document.getElementById('panicBox').innerHTML;
+let audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg'); audio.play().catch(()=>{});
+loadRadio();
+});
+
+socket.on('ptt_active', data=>{
+document.getElementById('radioLog').innerHTML = `<div style="color:yellow">🎙️ ${data.user} talking on CH${data.channel}...</div>` + document.getElementById('radioLog').innerHTML;
+});
+
+socket.on('ptt_audio', data=>{
+// if same channel, play it
+if(data.channel==currentCh && data.user!='{{user}}'){
+   // simple play for live - you can enhance later
+   console.log('Audio from', data.user);
+}
+});
+
+socket.on('ptt_inactive', data=>{ loadRadio(); });
+socket.on('user_connected', ()=>{ document.getElementById('usersOnline').innerText = 'user joined'; });
+setInterval(loadRadio, 3000);
+setInterval(async()=>{ let r=await fetch('/get_locations'); let locs=await r.json(); updateMap(locs); }, 4000);
+loadRadio();
 </script>
-</body></html>
+</body>
+</html>
