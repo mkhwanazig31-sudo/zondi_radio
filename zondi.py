@@ -115,7 +115,7 @@ def dashboard():
         # dev role user dashboard
         files = os.listdir(EVIDENCE) if os.path.exists(EVIDENCE) else []
         all_users = load_users()
-        return render_template('dev.html', locations=locations, files=files, user=user, all_users=all_users)
+        return render_template('dev.html', locations=locations, files=files, user=user, all_users=all_users, radio_messages=radio_messages, panic_alerts=panic_alerts)
 
 # ====== VISIBLE DEV PORTAL WITH SINGLE PASSWORD ======
 @app.route('/dev', methods=['GET','POST'])
@@ -153,7 +153,6 @@ def update_location():
         "time": datetime.now().strftime("%H:%M:%S"),
         "role": "client"
     }
-    # Broadcast to HQ and Dev portals
     socketio.emit('location_update', {'user': user, 'location': locations[user]}, broadcast=True)
     return jsonify({"ok": True})
 
@@ -179,7 +178,6 @@ def trigger_panic():
         "channel": "PANIC"
     })
     
-    # Broadcast panic to all devices
     socketio.emit('panic_alert', panic_data, broadcast=True)
     return jsonify({"status": "PANIC RECEIVED"})
 
@@ -192,25 +190,9 @@ def upload_evidence():
         path = os.path.join(EVIDENCE, fname)
         video.save(path)
         print(f"✅ Evidence saved: {path}")
-        
-        # Notify dev portal
         socketio.emit('evidence_uploaded', {'user': user, 'file': fname}, broadcast=True)
         return jsonify(ok=True, file=fname)
     return jsonify(error="no video"), 400
-
-@app.route('/send_radio', methods=['POST'])
-def send_radio():
-    user = session.get('user', 'unknown')
-    text = request.form.get('text', '')
-    now = datetime.now().strftime("%H:%M:%S")
-    filename = None
-    if 'audio' in request.files:
-        af = request.files['audio']
-        filename = f"RADIO_{user}_{now.replace(':', '')}.webm"
-        af.save(os.path.join(EVIDENCE, filename))
-    cur_ch = user_channels.get(user, 1)
-    radio_messages.append({"user": user, "text": text, "type": "audio" if filename else "text", "file": filename, "channel": cur_ch, "time": now})
-    return jsonify({"ok": True})
 
 @app.route('/set_channel/<int:ch>')
 def set_channel(ch):
@@ -263,7 +245,6 @@ def handle_disconnect():
 
 @socketio.on('ptt_start')
 def handle_ptt_start(data):
-    """User pressed PTT button - start recording"""
     user = session.get('user', 'unknown')
     channel = data.get('channel', 1)
     ptt_active[user] = {'channel': channel, 'started': datetime.now().isoformat()}
@@ -272,12 +253,9 @@ def handle_ptt_start(data):
 
 @socketio.on('ptt_audio_chunk')
 def handle_ptt_audio(data):
-    """Receive audio chunk during PTT"""
     user = session.get('user', 'unknown')
     channel = user_channels.get(user, 1)
     audio_data = data.get('audio')
-    
-    # Broadcast to all users on same channel
     socketio.emit('ptt_audio', {
         'user': user,
         'channel': channel,
@@ -286,14 +264,12 @@ def handle_ptt_audio(data):
 
 @socketio.on('ptt_end')
 def handle_ptt_end(data):
-    """User released PTT button"""
     user = session.get('user', 'unknown')
     channel = user_channels.get(user, 1)
     
     if user in ptt_active:
         del ptt_active[user]
     
-    # Save to radio messages
     now = datetime.now().strftime("%H:%M:%S")
     radio_messages.append({
         "user": user,
@@ -306,10 +282,6 @@ def handle_ptt_end(data):
     
     socketio.emit('ptt_inactive', {'user': user, 'channel': channel}, broadcast=True)
     print(f"🎙️ {user} ended PTT on channel {channel}")
-
-@socketio.on('get_active_users')
-def handle_get_active_users():
-    emit('active_users', active_users)
 
 if __name__ == '__main__':
     load_users()
