@@ -16,10 +16,9 @@ DEV_PORTAL_PASSWORD = "zondi@123"
 locations = {}
 radio_messages = []
 user_channels = {}
-os.makedirs("evidence", exist_ok=True)
-os.makedirs("static/radio", exist_ok=True)
-UPLOAD_FOLDER = 'static/radio'
-
+EVIDENCE = "static/evidence"
+os.makedirs(EVIDENCE, exist_ok=True)
+UPLOAD_FOLDER = EVIDENCE
 USERS_FILE = "users.json"
 
 def load_users():
