@@ -115,7 +115,7 @@ def dashboard():
 def dev_portal():
     # If already unlocked via dev password
     if session.get('dev_auth') == True:
-        files = os.listdir('evidence')
+        files = os.listdir(EVIDENCE)
         all_users = load_users()
         return render_template('dev.html', locations=locations, files=files, user="DEV-PORTAL", all_users=all_users, radio_messages=radio_messages)
 
@@ -123,7 +123,7 @@ def dev_portal():
         pw = request.form.get('devpass')
         if pw == DEV_PORTAL_PASSWORD:
             session['dev_auth'] = True
-            files = os.listdir('evidence')
+            files = os.listdir(EVIDENCE)
             all_users = load_users()
             return render_template('dev.html', locations=locations, files=files, user="DEV-PORTAL", all_users=all_users, radio_messages=radio_messages)
         else:
