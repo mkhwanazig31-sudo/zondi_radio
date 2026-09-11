@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os, json, time
@@ -10,13 +11,20 @@ from datetime import timedelta
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_PERMANENT'] = True
 
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 # === DEV PORTAL PASSWORD YOU REQUESTED ===
 DEV_PORTAL_PASSWORD = "zondi@123"
 
+# Global state
 locations = {}
 radio_messages = []
 user_channels = {}
-EVIDENCE = "evidence"  # Changed to match where files are saved
+active_users = {}  # Track active users and their roles
+ptt_active = {}    # Track who's currently transmitting
+panic_alerts = []  # Store panic alerts
+
+EVIDENCE = "evidence"
 os.makedirs(EVIDENCE, exist_ok=True)
 UPLOAD_FOLDER = EVIDENCE
 USERS_FILE = "users.json"
@@ -27,7 +35,6 @@ def load_users():
     try:
         with open(USERS_FILE, 'r') as f:
             data = json.load(f)
-            # if file is empty, don't overwrite with defaults
             if not data:
                 return {}
             return data
@@ -106,26 +113,25 @@ def dashboard():
         return render_template('hq.html', locations=locations, user=user)
     else:
         # dev role user dashboard
-        files = os.listdir(EVIDENCE)
+        files = os.listdir(EVIDENCE) if os.path.exists(EVIDENCE) else []
         all_users = load_users()
         return render_template('dev.html', locations=locations, files=files, user=user, all_users=all_users)
 
-# ====== FIXED VISIBLE DEV PORTAL WITH SINGLE PASSWORD ======
+# ====== VISIBLE DEV PORTAL WITH SINGLE PASSWORD ======
 @app.route('/dev', methods=['GET','POST'])
 def dev_portal():
-    # If already unlocked via dev password
     if session.get('dev_auth') == True:
-        files = os.listdir(EVIDENCE)
+        files = os.listdir(EVIDENCE) if os.path.exists(EVIDENCE) else []
         all_users = load_users()
-        return render_template('dev.html', locations=locations, files=files, user="DEV-PORTAL", all_users=all_users, radio_messages=radio_messages)
+        return render_template('dev.html', locations=locations, files=files, user="DEV-PORTAL", all_users=all_users, radio_messages=radio_messages, panic_alerts=panic_alerts)
 
     if request.method == 'POST':
         pw = request.form.get('devpass')
         if pw == DEV_PORTAL_PASSWORD:
             session['dev_auth'] = True
-            files = os.listdir(EVIDENCE)
+            files = os.listdir(EVIDENCE) if os.path.exists(EVIDENCE) else []
             all_users = load_users()
-            return render_template('dev.html', locations=locations, files=files, user="DEV-PORTAL", all_users=all_users, radio_messages=radio_messages)
+            return render_template('dev.html', locations=locations, files=files, user="DEV-PORTAL", all_users=all_users, radio_messages=radio_messages, panic_alerts=panic_alerts)
         else:
             return render_template('dev_login.html', error="❌ Wrong Dev Password")
 
@@ -136,93 +142,179 @@ def dev_logout():
     session.pop('dev_auth', None)
     return redirect('/dev')
 
-# KEEP YOUR WORKING ROUTES
+# ====== REST API ENDPOINTS ======
 @app.route('/update_location', methods=['POST'])
 def update_location():
     data = request.json
-    locations[data.get('user')] = {"lat": data.get('lat'), "lng": data.get('lng'), "time": datetime.now().strftime("%H:%M:%S")}
+    user = data.get('user', session.get('user', 'unknown'))
+    locations[user] = {
+        "lat": data.get('lat'),
+        "lng": data.get('lng'),
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "role": "client"
+    }
+    # Broadcast to HQ and Dev portals
+    socketio.emit('location_update', {'user': user, 'location': locations[user]}, broadcast=True)
     return jsonify({"ok": True})
 
-@app.route('/trigger', methods=['POST'])
-def trigger():
-    user = session.get('user','unknown')
+@app.route('/trigger_panic', methods=['POST'])
+def trigger_panic():
+    user = session.get('user', 'unknown')
     now = datetime.now().strftime("%H:%M:%S")
-    radio_messages.append({"user": user, "text": f"🚨 PANIC ALERT FROM {user.upper()}!", "type": "panic", "time": now, "file": None})
-    return jsonify({"status":"PANIC RECEIVED"})
+    
+    panic_data = {
+        "user": user,
+        "time": now,
+        "location": locations.get(user, {"lat": 0, "lng": 0}),
+        "message": f"🚨 PANIC ALERT FROM {user.upper()}!"
+    }
+    
+    panic_alerts.append(panic_data)
+    radio_messages.append({
+        "user": user,
+        "text": f"🚨 PANIC ALERT FROM {user.upper()}!",
+        "type": "panic",
+        "time": now,
+        "file": None,
+        "channel": "PANIC"
+    })
+    
+    # Broadcast panic to all devices
+    socketio.emit('panic_alert', panic_data, broadcast=True)
+    return jsonify({"status": "PANIC RECEIVED"})
 
 @app.route('/upload_evidence', methods=['POST'])
 def upload_evidence():
     video = request.files.get('video')
-    user = session.get('user','unknown')
+    user = session.get('user', 'unknown')
     if video:
-        fname = f"PANIC_{user}_{int(time.time())}.webm"
+        fname = f"CLIENT_{user}_{int(time.time())}.webm"
         path = os.path.join(EVIDENCE, fname)
         video.save(path)
-        print(f"✅ Evidence saved to dev: {path}")
+        print(f"✅ Evidence saved: {path}")
+        
+        # Notify dev portal
+        socketio.emit('evidence_uploaded', {'user': user, 'file': fname}, broadcast=True)
         return jsonify(ok=True, file=fname)
-    return jsonify(error="no video"),400
+    return jsonify(error="no video"), 400
 
 @app.route('/send_radio', methods=['POST'])
 def send_radio():
-    user = session.get('user','unknown')
-    text = request.form.get('text','')
+    user = session.get('user', 'unknown')
+    text = request.form.get('text', '')
     now = datetime.now().strftime("%H:%M:%S")
     filename = None
     if 'audio' in request.files:
         af = request.files['audio']
-        filename = f"RADIO_{user}_{now.replace(':','')}.webm"
-        af.save(os.path.join(EVIDENCE, filename))  # Fixed: use EVIDENCE instead of "evidence"
+        filename = f"RADIO_{user}_{now.replace(':', '')}.webm"
+        af.save(os.path.join(EVIDENCE, filename))
     cur_ch = user_channels.get(user, 1)
     radio_messages.append({"user": user, "text": text, "type": "audio" if filename else "text", "file": filename, "channel": cur_ch, "time": now})
     return jsonify({"ok": True})
 
 @app.route('/set_channel/<int:ch>')
 def set_channel(ch):
-    user_channels[session.get('user','guest')] = ch
+    user = session.get('user', 'guest')
+    user_channels[user] = ch
+    socketio.emit('channel_changed', {'user': user, 'channel': ch}, broadcast=True)
     return 'ok'
 
 @app.route('/get_radio')
 def get_radio():
-    u = session.get('user','guest')
+    u = session.get('user', 'guest')
     ch = user_channels.get(u, 1)
-    filtered = [r for r in radio_messages if r.get('channel',1)==ch]
+    filtered = [r for r in radio_messages if r.get('channel', 1) == ch]
     return jsonify(filtered[-20:])
 
 @app.route('/get_locations')
-def get_locations(): return jsonify(locations)
+def get_locations():
+    return jsonify(locations)
+
+@app.route('/get_panic_alerts')
+def get_panic_alerts():
+    return jsonify(panic_alerts[-10:])
 
 @app.route('/evidence/<path:filename>')
 def evidence_file(filename):
-    return send_from_directory(EVIDENCE, filename)  # Fixed: use EVIDENCE variable
+    return send_from_directory(EVIDENCE, filename)
 
 @app.route('/logout')
-def logout(): session.clear(); return redirect('/login')
+def logout():
+    session.clear()
+    return redirect('/login')
 
-@app.route('/api/radio/upload', methods=['POST'])
-def radio_upload():
-    file = request.files['audio']
-    channel = request.form.get('channel', 'ch1')
-    user = request.form.get('user', 'HQ')
-    filename = f"{int(time.time()*1000)}_{secure_filename(file.filename)}"
-    path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(path)
-    msg = {'audioUrl': f'/{UPLOAD_FOLDER}/{filename}', 'channel': channel, 'user': user, 'time': int(time.time())}
-    radio_messages.append(msg)
-    return jsonify(msg)
+# ====== SOCKETIO EVENTS FOR REAL-TIME PTT RADIO ======
 
-@app.route('/api/radio/feed')
-def radio_feed():
-    channel = request.args.get('channel','ch1')
-    if channel == 'ch_all':
-        return jsonify(radio_messages[-30:])
-    filtered = [m for m in radio_messages if m.get('channel',None) in [channel, 'ch_all'] or 'channel' not in m]
-    return jsonify(filtered[-30:])
+@socketio.on('connect')
+def handle_connect():
+    user = session.get('user', 'unknown')
+    role = session.get('role', 'unknown')
+    active_users[user] = {'role': role, 'sid': request.sid}
+    print(f"✅ {user} ({role}) connected")
+    socketio.emit('user_connected', {'user': user, 'role': role}, broadcast=True)
 
-@app.route('/static/radio/<filename>')
-def serve_radio(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+@socketio.on('disconnect')
+def handle_disconnect():
+    user = session.get('user', 'unknown')
+    if user in active_users:
+        del active_users[user]
+    print(f"❌ {user} disconnected")
+    socketio.emit('user_disconnected', {'user': user}, broadcast=True)
+
+@socketio.on('ptt_start')
+def handle_ptt_start(data):
+    """User pressed PTT button - start recording"""
+    user = session.get('user', 'unknown')
+    channel = data.get('channel', 1)
+    ptt_active[user] = {'channel': channel, 'started': datetime.now().isoformat()}
+    socketio.emit('ptt_active', {'user': user, 'channel': channel}, broadcast=True)
+    print(f"🎙️ {user} started PTT on channel {channel}")
+
+@socketio.on('ptt_audio_chunk')
+def handle_ptt_audio(data):
+    """Receive audio chunk during PTT"""
+    user = session.get('user', 'unknown')
+    channel = user_channels.get(user, 1)
+    audio_data = data.get('audio')
+    
+    # Broadcast to all users on same channel
+    socketio.emit('ptt_audio', {
+        'user': user,
+        'channel': channel,
+        'audio': audio_data
+    }, broadcast=True)
+
+@socketio.on('ptt_end')
+def handle_ptt_end(data):
+    """User released PTT button"""
+    user = session.get('user', 'unknown')
+    channel = user_channels.get(user, 1)
+    
+    if user in ptt_active:
+        del ptt_active[user]
+    
+    # Save to radio messages
+    now = datetime.now().strftime("%H:%M:%S")
+    radio_messages.append({
+        "user": user,
+        "text": data.get('text', ''),
+        "type": "audio",
+        "channel": channel,
+        "time": now,
+        "file": None
+    })
+    
+    socketio.emit('ptt_inactive', {'user': user, 'channel': channel}, broadcast=True)
+    print(f"🎙️ {user} ended PTT on channel {channel}")
+
+@socketio.on('get_active_users')
+def handle_get_active_users():
+    emit('active_users', active_users)
 
 if __name__ == '__main__':
     load_users()
-    print("ZPS V4 - ENCRYPTED AUTH + DEV PORTAL zondi@123 READY")
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
+    print("🚨 ZONDI SECURITY SYSTEM V5 READY")
+    print("   - CLIENT PORTAL: /dashboard (role=client)")
+    print("   - HQ PORTAL: /dashboard (role=patrol)")
+    print("   - DEV PORTAL: /dev (password: zondi@123)")
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
