@@ -16,7 +16,7 @@ DEV_PORTAL_PASSWORD = "zondi@123"
 locations = {}
 radio_messages = []
 user_channels = {}
-EVIDENCE = "static/evidence"
+EVIDENCE = "evidence"  # Changed to match where files are saved
 os.makedirs(EVIDENCE, exist_ok=True)
 UPLOAD_FOLDER = EVIDENCE
 USERS_FILE = "users.json"
@@ -106,7 +106,7 @@ def dashboard():
         return render_template('hq.html', locations=locations, user=user)
     else:
         # dev role user dashboard
-        files = os.listdir('evidence')
+        files = os.listdir(EVIDENCE)
         all_users = load_users()
         return render_template('dev.html', locations=locations, files=files, user=user, all_users=all_users)
 
@@ -171,7 +171,7 @@ def send_radio():
     if 'audio' in request.files:
         af = request.files['audio']
         filename = f"RADIO_{user}_{now.replace(':','')}.webm"
-        af.save(os.path.join("evidence", filename))
+        af.save(os.path.join(EVIDENCE, filename))  # Fixed: use EVIDENCE instead of "evidence"
     cur_ch = user_channels.get(user, 1)
     radio_messages.append({"user": user, "text": text, "type": "audio" if filename else "text", "file": filename, "channel": cur_ch, "time": now})
     return jsonify({"ok": True})
@@ -193,7 +193,7 @@ def get_locations(): return jsonify(locations)
 
 @app.route('/evidence/<path:filename>')
 def evidence_file(filename):
-    return send_from_directory("evidence", filename)
+    return send_from_directory(EVIDENCE, filename)  # Fixed: use EVIDENCE variable
 
 @app.route('/logout')
 def logout(): session.clear(); return redirect('/login')
