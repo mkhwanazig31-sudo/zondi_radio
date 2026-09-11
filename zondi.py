@@ -5,7 +5,10 @@ import os, json, time
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "zondi_super_secret_2026_encrypted"
+app.secret_key = "ZONDI_SUPER_SECRET_2026"
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_PERMANENT'] = True
 
 # === DEV PORTAL PASSWORD YOU REQUESTED ===
 DEV_PORTAL_PASSWORD = "zondi@123"
