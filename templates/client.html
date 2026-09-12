@@ -1,407 +1,64 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <title>ZONDI - Client App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #000;
-      color: #00ff00;
-      font-family: monospace;
-      padding: 10px;
-    }
-    .top {
-      background: #111;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 15px;
-      border: 2px solid #00ff00;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .top h2 { color: #00ff00; font-size: 18px; }
-    .status { font-size: 12px; color: #888; }
-    
-    .tabs-container {
-      display: flex;
-      gap: 5px;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      border-bottom: 2px solid #333;
-    }
-    .tab-button {
-      background: #111;
-      color: #00ff00;
-      border: 2px solid #333;
-      padding: 10px 20px;
-      cursor: pointer;
-      border-radius: 6px 6px 0 0;
-      font-family: monospace;
-      font-size: 13px;
-      transition: all 0.3s;
-    }
-    .tab-button:hover {
-      background: #222;
-      border-color: #00ff00;
-    }
-    .tab-button.active {
-      background: #00ff00;
-      color: #000;
-      border-color: #00ff00;
-    }
-
-    .tab-content {
-      display: none;
-      animation: fadeIn 0.3s;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .card {
-      background: #111;
-      border: 2px solid #333;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 6px;
-    }
-    .card h3 { color: #00ff00; margin-bottom: 10px; }
-
-    video, audio {
-      width: 100%;
-      background: #000;
-      border-radius: 6px;
-      margin: 10px 0;
-    }
-
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin: 15px 0;
-      flex-wrap: wrap;
-    }
-    button {
-      padding: 12px 20px;
-      background: #00ff00;
-      color: #000;
-      border: none;
-      border-radius: 6px;
-      font-family: monospace;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s;
-      flex: 1;
-      min-width: 120px;
-    }
-    button:hover {
-      background: #00dd00;
-      transform: scale(1.05);
-    }
-    button:disabled {
-      background: #666;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    .panic-button {
-      padding: 20px 40px;
-      background: #ff0000 !important;
-      font-size: 18px !important;
-      border-radius: 12px;
-    }
-    .panic-button:hover {
-      background: #cc0000 !important;
-    }
-
-    .info {
-      background: #0a0a0a;
-      border-left: 4px solid #00ff00;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    .success { border-left-color: #00ff00; color: #00ff00; }
-    .error { border-left-color: #ff0000; color: #ff0000; }
-    .warning { border-left-color: #ffaa00; color: #ffaa00; }
-
-    .location-info {
-      background: #0a0a0a;
-      padding: 10px;
-      border-radius: 6px;
-      margin: 10px 0;
-      font-size: 12px;
-    }
-    .location-info .label { color: #888; }
-    .location-info .value { color: #00ff00; font-weight: bold; }
-
-    .camera-preview {
-      width: 100%;
-      height: 300px;
-      background: #000;
-      border: 2px solid #333;
-      border-radius: 6px;
-    }
-
-    .refresh-info {
-      color: #666;
-      font-size: 11px;
-      margin-top: 10px;
-    }
-  </style>
-</head>
-<body>
-
-<div class="top">
-  <h2>🔒 ZONDI CLIENT - {{user}}</h2>
-  <div>
-    <div class="status">Connected ✓</div>
-    <a href="/logout" style="color: cyan; text-decoration: none; font-size: 12px;">Logout</a>
-  </div>
-</div>
-
-<!-- TAB BUTTONS -->
-<div class="tabs-container">
-  <button class="tab-button active" onclick="switchTab('camera')">🎥 Camera</button>
-  <button class="tab-button" onclick="switchTab('location')">📍 Location</button>
-  <button class="tab-button" onclick="switchTab('panic')">🚨 Panic</button>
-</div>
-
-<!-- TAB 1: CAMERA -->
-<div id="camera" class="tab-content active">
-  <div class="card">
-    <h3>🎥 Live Camera Recording</h3>
-    <video id="video" class="camera-preview" autoplay muted playsinline></video>
-    <div class="button-group">
-      <button onclick="startCamera()">📷 Start Camera</button>
-      <button id="recordBtn" onclick="toggleRecording()">⏱️ Start Recording</button>
-      <button onclick="stopCamera()">❌ Stop</button>
-    </div>
-    <button onclick="uploadVideo()" style="background: #0099ff;">⬆️ Upload Evidence</button>
-    <div id="cameraStatus" class="info warning">Ready to record</div>
-    <div class="refresh-info">💾 Recorded videos are uploaded to Dev Portal</div>
-  </div>
-</div>
-
-<!-- TAB 2: LOCATION -->
-<div id="location" class="tab-content">
-  <div class="card">
-    <h3>📍 GPS Location Tracking</h3>
-    <div class="location-info">
-      <div class="label">Status:</div>
-      <div id="locStatus" class="value">Waiting for GPS...</div>
-    </div>
-    <div class="location-info">
-      <div class="label">Latitude:</div>
-      <div id="locLat" class="value">--</div>
-    </div>
-    <div class="location-info">
-      <div class="label">Longitude:</div>
-      <div id="locLng" class="value">--</div>
-    </div>
-    <div class="location-info">
-      <div class="label">Accuracy:</div>
-      <div id="locAcc" class="value">--</div>
-    </div>
-    <div class="location-info">
-      <div class="label">Last Update:</div>
-      <div id="locTime" class="value">--</div>
-    </div>
-    <div class="button-group">
-      <button onclick="startTracking()">📡 Enable Tracking</button>
-      <button onclick="stopTracking()">⏹️ Stop Tracking</button>
-    </div>
-    <a href="https://maps.google.com/maps?q=LOCATION" id="mapLink" target="_blank" style="display:block; padding:10px; background:#0099ff; color:#000; text-align:center; border-radius:6px; text-decoration:none; margin-top:10px;">🗺️ View on Google Maps</a>
-    <div class="refresh-info">📡 Location is sent to HQ and Dev portals every 5 seconds</div>
-  </div>
-</div>
-
-<!-- TAB 3: PANIC BUTTON -->
-<div id="panic" class="tab-content">
-  <div class="card" style="text-align: center;">
-    <h3>🚨 EMERGENCY PANIC BUTTON</h3>
-    <div class="info warning" style="text-align: center; margin: 20px 0;">
-      Press the button below to send an emergency distress signal to HQ and Developers
-    </div>
-    <button class="panic-button" onclick="triggerPanic()" style="width: 100%; padding: 40px; font-size: 24px; margin: 30px 0;">
-      🚨 PANIC - SEND ALERT 🚨
-    </button>
-    <div id="panicStatus" class="info warning" style="text-align: center;">
-      Last alert: Never
-    </div>
-    <div class="refresh-info">⚠️ This will immediately alert HQ and Developers with your location</div>
-  </div>
-</div>
-
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZONDI</title>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{height:100vh;background:#0b141a;color:#e9edef;font-family:system-ui;display:flex;flex-direction:column}
+.top{background:#202c33;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.search{padding:8px 10px;background:#111b21}.search input{width:100%;padding:10px 14px;border-radius:8px;border:none;background:#202c33;color:#fff}
+.list{flex:1;overflow-y:auto;background:#111b21}
+.item{padding:12px;display:flex;gap:10px;border-bottom:1px solid #222d34;cursor:pointer}.item.active{background:#2a3942}
+.av{width:45px;height:45px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.chat-wrap{position:fixed;inset:0;background:#0b141a;z-index:10;display:none;flex-direction:column}
+.chat-wrap.open{display:flex}
+.chat-head{background:#202c33;padding:10px;display:flex;align-items:center;gap:10px}
+.chat-area{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;background:#e5ddd5;background-image:url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')}
+.bub{max-width:75%;padding:6px 8px;border-radius:7.5px;font-size:14px;box-shadow:0 1px.5px rgba(0,0,0,.13)}
+.bub.other{background:#fff;color:#000;align-self:flex-start;border-top-left-radius:0}.bub.me{background:#d9fdd3;color:#000;align-self:flex-end;border-top-right-radius:0}
+.meta{font-size:10px;color:#667781;text-align:right;margin-top:3px}
+.input-bar{background:#f0f2f5;padding:6px 10px;display:flex;align-items:center;gap:8px;position:sticky;bottom:0}
+.input-bar input{flex:1;padding:12px 16px;border-radius:21px;border:none;outline:none;font-size:15px}
+.mic{width:44px;height:44px;border-radius:50%;border:none;background:#00a884;color:#fff;font-size:20px}
+.mic.rec{background:#f15c6d}
+#map{height:200px;display:none}
+</style></head><body>
+<div class="top"><b>ZONDI - {{user}}</b><button onclick="openCreate()" style="background:#00a884;border:none;color:#fff;padding:7px 12px;border-radius:20px">+ Group</button></div>
+<div class="search"><input id="searchBox" placeholder="Search groups" onkeyup="doSearch()"></div>
+<div id="map"></div>
+<div class="list" id="groupList"></div>
+<div style="padding:10px;text-align:center;background:#111b21"><a href="/logout" style="color:#8696a0;font-size:12px">Logout</a> • <span onclick="toggleMap()" style="color:#00a884;cursor:pointer">📍 Map</span></div>
+
+<!-- CHAT PAGE LIKE WHATSAPP -->
+<div class="chat-wrap" id="chatPage">
+<div class="chat-head"><span onclick="closeChat()" style="font-size:22px;cursor:pointer">←</span><div class="av" id="cAv">K</div><div><div id="cName" style="font-weight:600">K9</div><div id="cSub" style="font-size:11px;color:#8696a0">1 members</div></div><div style="margin-left:auto">⋮</div></div>
+<div class="chat-area" id="chatArea"></div>
+<div class="input-bar">
+<span style="font-size:22px">😊</span>
+<input id="msgInput" placeholder="Message" onkeydown="if(event.key==='Enter')sendText()">
+<span style="font-size:20px">📎</span><span style="font-size:20px">📷</span>
+<button class="mic" id="micBtn" onclick="toggleVoice()">🎙️</button>
+<button class="mic" id="sendBtn" style="display:none;background:#00a884" onclick="sendText()">➤</button>
+</div>
+</div>
+
+<div id="createModal" style="display:none;position:fixed;inset:0;background:#000a;z-index:20;align-items:center;justify-content:center"><div style="background:#202c33;padding:20px;border-radius:12px;width:300px"><h3>Create Group</h3><br><input id="newId" placeholder="id: k9_unit" style="width:100%;padding:10px;border-radius:6px;border:none;background:#2a3942;color:#fff;margin-bottom:8px"><input id="newName" placeholder="Name: K9 Unit" style="width:100%;padding:10px;border-radius:6px;border:none;background:#2a3942;color:#fff;margin-bottom:12px"><button onclick="createGroup()" style="width:100%;padding:10px;background:#00a884;border:none;color:#fff;border-radius:6px">Create</button><button onclick="document.getElementById('createModal').style.display='none'" style="width:100%;margin-top:6px;padding:8px;background:#333;border:none;color:#fff;border-radius:6px">Cancel</button></div></div>
+
 <script>
-const socket = io();
-let mediaRecorder;
-let recordedChunks = [];
-let stream;
-let trackingActive = false;
-let lastLat, lastLng;
-
-function switchTab(tabName) {
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-  document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(tabName).classList.add('active');
-  event.target.classList.add('active');
-}
-
-async function startCamera() {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById('video').srcObject = stream;
-    updateStatus('Camera started ✓', 'success', 'camera');
-  } catch (err) {
-    updateStatus('Camera access denied: ' + err.message, 'error', 'camera');
-  }
-}
-
-function toggleRecording() {
-  if (!stream) {
-    updateStatus('Start camera first', 'error', 'camera');
-    return;
-  }
-  
-  if (!mediaRecorder) {
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
-    mediaRecorder.start();
-    document.getElementById('recordBtn').textContent = '⏹️ Stop Recording';
-    updateStatus('Recording... ⏺️', 'success', 'camera');
-  } else {
-    mediaRecorder.stop();
-    document.getElementById('recordBtn').textContent = '⏱️ Start Recording';
-    updateStatus('Recording stopped. Ready to upload.', 'warning', 'camera');
-    mediaRecorder = null;
-  }
-}
-
-function stopCamera() {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    document.getElementById('video').srcObject = null;
-    updateStatus('Camera stopped', 'warning', 'camera');
-  }
-}
-
-async function uploadVideo() {
-  if (recordedChunks.length === 0) {
-    updateStatus('No video recorded', 'error', 'camera');
-    return;
-  }
-  
-  const blob = new Blob(recordedChunks, { type: 'video/webm' });
-  const formData = new FormData();
-  formData.append('video', blob);
-  
-  try {
-    const res = await fetch('/upload_evidence', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (data.ok) {
-      updateStatus(`✅ Video uploaded: ${data.file}`, 'success', 'camera');
-      recordedChunks = [];
-    }
-  } catch (err) {
-    updateStatus('Upload failed: ' + err.message, 'error', 'camera');
-  }
-}
-
-function startTracking() {
-  if (!navigator.geolocation) {
-    updateStatus('Geolocation not supported', 'error', 'location');
-    return;
-  }
-  
-  trackingActive = true;
-  updateStatus('GPS tracking active ✓', 'success', 'location');
-  
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      lastLat = pos.coords.latitude;
-      lastLng = pos.coords.longitude;
-      sendLocation(lastLat, lastLng);
-      updateLocationDisplay(pos);
-    },
-    err => updateStatus('GPS access denied: ' + err.message, 'error', 'location')
-  );
-  
-  setInterval(() => {
-    if (!trackingActive) return;
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        lastLat = pos.coords.latitude;
-        lastLng = pos.coords.longitude;
-        sendLocation(lastLat, lastLng);
-        updateLocationDisplay(pos);
-      }
-    );
-  }, 5000);
-}
-
-function stopTracking() {
-  trackingActive = false;
-  updateStatus('Tracking stopped', 'warning', 'location');
-}
-
-function sendLocation(lat, lng) {
-  fetch('/update_location', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat, lng })
-  });
-}
-
-function updateLocationDisplay(pos) {
-  const lat = pos.coords.latitude.toFixed(6);
-  const lng = pos.coords.longitude.toFixed(6);
-  const acc = Math.round(pos.coords.accuracy) + ' m';
-  
-  document.getElementById('locLat').textContent = lat;
-  document.getElementById('locLng').textContent = lng;
-  document.getElementById('locAcc').textContent = acc;
-  document.getElementById('locTime').textContent = new Date().toLocaleTimeString();
-  document.getElementById('mapLink').href = `https://maps.google.com/maps?q=${lat},${lng}`;
-}
-
-async function triggerPanic() {
-  try {
-    const res = await fetch('/trigger_panic', { method: 'POST' });
-    const data = await res.json();
-    if (data.status === 'PANIC RECEIVED') {
-      updateStatus(`✅ PANIC ALERT SENT - ${new Date().toLocaleTimeString()}`, 'success', 'panic');
-    }
-  } catch (err) {
-    updateStatus('Failed to send panic: ' + err.message, 'error', 'panic');
-  }
-}
-
-function updateStatus(msg, type, tab) {
-  const elem = document.getElementById(tab === 'camera' ? 'cameraStatus' : 
-                                       tab === 'location' ? 'locStatus' : 'panicStatus');
-  if (elem) {
-    elem.className = 'info ' + type;
-    elem.textContent = msg;
-  }
-}
-
-socket.on('panic_alert', (data) => {
-  console.log('Panic received:', data);
-});
-
-socket.on('location_update', (data) => {
-  console.log('Location update:', data);
-});
-</script>
-
-</body>
-</html>
+const socket=io(); let groups={}, cur=null, rec, chunks=[], isRec=false;
+function openCreate(){document.getElementById('createModal').style.display='flex'}
+function doSearch(){let q=document.getElementById('searchBox').value.toLowerCase(); document.querySelectorAll('.item').forEach(e=>{e.style.display=e.innerText.toLowerCase().includes(q)?'flex':'none'})}
+function toggleMap(){let m=document.getElementById('map'); let s=m.style.display=='block'; m.style.display=s?'none':'block'; if(!s&&!window.map){window.map=L.map('map').setView([-25.7,28.1],9); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.map);}}
+async function load(){let r=await fetch('/api/groups'); groups=await r.json(); render()}
+function render(){let h=''; for(let id in groups){let g=groups[id]; let last=g.messages.length?g.messages[g.messages.length-1].text:'No messages yet'; h+=`<div class="item" onclick="openChat('${id}')"><div class="av">${g.name[0].toUpperCase()}</div><div style="flex:1"><div style="display:flex;justify-content:space-between"><b>${g.name}</b><span style="font-size:11px;color:#8696a0">${g.messages.length?g.messages[g.messages.length-1].time:''}</span></div><div style="font-size:12px;color:#8696a0">${last} • ${g.messages.length}</div></div></div>`;} document.getElementById('groupList').innerHTML=h;}
+function openChat(id){cur=id; let g=groups[id]; document.getElementById('cName').innerText=g.name; document.getElementById('cAv').innerText=g.name[0].toUpperCase(); document.getElementById('cSub').innerText=g.members.length+' members'; document.getElementById('chatPage').classList.add('open'); socket.emit('join_group',{group:id}); fetch('/api/group_messages/'+id).then(r=>r.json()).then(msgs=>{groups[id].messages=msgs; renderChat();}); renderChat();}
+function closeChat(){document.getElementById('chatPage').classList.remove('open'); cur=null}
+function renderChat(){if(!cur) return; let g=groups[cur]; let area=document.getElementById('chatArea'); area.innerHTML=''; if(g.messages.length==0){area.innerHTML='<div style="text-align:center;color:#667781;margin-top:40px;font-size:13px;background:#fff;padding:8px;border-radius:8px;align-self:center">🔒 Messages are end-to-end encrypted. Tap to chat.</div>'; return;} g.messages.forEach(m=>{let me=m.user==='{{user}}'; let d=document.createElement('div'); d.className='bub '+(me?'me':'other'); if(m.file){d.innerHTML=`<div style="font-size:11px;color:#00a884;font-weight:bold">${m.user}</div><audio controls src="/evidence/${m.file}" style="width:220px"></audio><div class="meta">${m.time} ✓✓</div>`;} else {d.innerHTML=`${me?'':`<div style="font-size:11px;color:#00a884;font-weight:bold">${m.user}</div>`}<div>${m.text}</div><div class="meta">${m.time} ${me?'✓✓':''}</div>`;} area.appendChild(d);}); area.scrollTop=area.scrollHeight;}
+async function createGroup(){let id=document.getElementById('newId').value.trim().toLowerCase().replace(/ /g,'_'), name=document.getElementById('newName').value.trim(); if(!id||!name) return alert('fill'); let r=await fetch('/api/create_group',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,name})}); let j=await r.json(); if(j.ok){groups=j.groups; render(); document.getElementById('createModal').style.display='none';} else alert(j.error);}
+async function sendText(){let t=document.getElementById('msgInput').value.trim(); if(!t||!cur) return; document.getElementById('msgInput').value=''; await fetch('/api/send_text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({group:cur,text:t})});}
+async function toggleVoice(){let btn=document.getElementById('micBtn'); if(!isRec){try{let s=await navigator.mediaDevices.getUserMedia({audio:true}); chunks=[]; rec=new MediaRecorder(s,{mimeType:'audio/webm'}); rec.ondataavailable=e=>{if(e.data.size>0) chunks.push(e.data)}; rec.onstop=async()=>{let blob=new Blob(chunks,{type:'audio/webm'}); if(blob.size<800){return;} let fd=new FormData(); fd.append('voice',blob,'v.webm'); fd.append('group',cur); await fetch('/api/send_voice',{method:'POST',body:fd});}; rec.start(); isRec=true; btn.classList.add('rec'); btn.innerText='◼';}catch(e){alert(e.message)}} else {rec.stop(); rec.stream.getTracks().forEach(t=>t.stop()); isRec=false; btn.classList.remove('rec'); btn.innerText='🎙️';}}
+// show send btn when typing
+document.getElementById('msgInput').addEventListener('input', e=>{let has=e.target.value.trim().length>0; document.getElementById('sendBtn').style.display=has?'block':'none'; document.getElementById('micBtn').style.display=has?'none':'block';});
+socket.on('new_msg', d=>{if(groups[d.group]){groups[d.group].messages.push(d.msg); render(); if(cur==d.group) renderChat();}});
+socket.on('groups_updated', g=>{groups=g; render();});
+load();
+</script></body></html>
