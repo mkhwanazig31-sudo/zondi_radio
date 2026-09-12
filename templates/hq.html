@@ -1,125 +1,64 @@
 <!DOCTYPE html>
-<html><head><title>ZONDI CHAT</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZONDI</title>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{background:#111b21;color:#e9edef;font-family:system-ui;height:100vh;display:flex;overflow:hidden}
-.sidebar{width:35%;min-width:300px;background:#111b21;border-right:1px solid #222d34;display:flex;flex-direction:column}
-.main{flex:1;background:#0b141a;display:flex;flex-direction:column;position:relative}
-.head{background:#202c33;padding:12px;display:flex;justify-content:space-between;align-items:center}
-.search{padding:8px;background:#111b21}.search input{width:100%;padding:10px 14px;border-radius:8px;border:none;background:#202c33;color:#fff}
-.groups{flex:1;overflow-y:auto}
-.g-item{padding:12px 14px;border-bottom:1px solid #222d34;display:flex;gap:10px;cursor:pointer}.g-item.active{background:#2a3942}.g-item:hover{background:#202c33}
-.g-avatar{width:42px;height:42px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center;font-weight:bold}
-.g-info{flex:1}.g-name{font-weight:500}.g-last{font-size:12px;color:#8696a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.chat-area{flex:1;overflow-y:auto;padding:16px;background:#0b141a url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');display:flex;flex-direction:column;gap:6px}
-.bubble{max-width:65%;padding:6px 8px 6px 8px;border-radius:7px;font-size:14px;position:relative}
-.bubble.other{background:#202c33;align-self:flex-start;border-top-left-radius:0}.bubble.me{background:#005c4b;align-self:flex-end;border-top-right-radius:0}
-.meta{font-size:10px;color:#ffffff99;margin-top:4px;text-align:right}
-.bubble audio{width:240px}
-.input-bar{background:#202c33;padding:8px 10px;display:flex;align-items:center;gap:8px}
-.input-bar input{flex:1;padding:12px 14px;border-radius:21px;border:none;background:#2a3942;color:#fff;outline:none}
-.icon-btn{width:44px;height:44px;border-radius:50%;border:none;background:#00a884;color:#fff;font-size:20px;cursor:pointer}
-.icon-btn.rec{background:#f15c6d;animation:pulse 1s infinite}@keyframes pulse{0%{scale:1}50%{scale:1.1}100%{scale:1}}
-#map{height:220px;display:none}
-@media(max-width:768px){.sidebar{width:100%;position:absolute;z-index:2;height:100%}.sidebar.hide{transform:translateX(-100%)}.main{width:100%}}
+*{margin:0;padding:0;box-sizing:border-box}body{height:100vh;background:#0b141a;color:#e9edef;font-family:system-ui;display:flex;flex-direction:column}
+.top{background:#202c33;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.search{padding:8px 10px;background:#111b21}.search input{width:100%;padding:10px 14px;border-radius:8px;border:none;background:#202c33;color:#fff}
+.list{flex:1;overflow-y:auto;background:#111b21}
+.item{padding:12px;display:flex;gap:10px;border-bottom:1px solid #222d34;cursor:pointer}.item.active{background:#2a3942}
+.av{width:45px;height:45px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.chat-wrap{position:fixed;inset:0;background:#0b141a;z-index:10;display:none;flex-direction:column}
+.chat-wrap.open{display:flex}
+.chat-head{background:#202c33;padding:10px;display:flex;align-items:center;gap:10px}
+.chat-area{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;background:#e5ddd5;background-image:url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')}
+.bub{max-width:75%;padding:6px 8px;border-radius:7.5px;font-size:14px;box-shadow:0 1px.5px rgba(0,0,0,.13)}
+.bub.other{background:#fff;color:#000;align-self:flex-start;border-top-left-radius:0}.bub.me{background:#d9fdd3;color:#000;align-self:flex-end;border-top-right-radius:0}
+.meta{font-size:10px;color:#667781;text-align:right;margin-top:3px}
+.input-bar{background:#f0f2f5;padding:6px 10px;display:flex;align-items:center;gap:8px;position:sticky;bottom:0}
+.input-bar input{flex:1;padding:12px 16px;border-radius:21px;border:none;outline:none;font-size:15px}
+.mic{width:44px;height:44px;border-radius:50%;border:none;background:#00a884;color:#fff;font-size:20px}
+.mic.rec{background:#f15c6d}
+#map{height:200px;display:none}
 </style></head><body>
-<div class="sidebar" id="sidebar">
-<div class="head"><b>ZONDI - {{user}}</b><button onclick="openCreate()" style="background:#00a884;border:none;color:#fff;padding:6px 10px;border-radius:6px">+ Group</button></div>
-<div class="search"><input id="search" placeholder="Search groups" onkeyup="filterGroups()"></div>
-<div class="groups" id="groupList"></div>
-<div style="padding:8px;text-align:center"><a href="/logout" style="color:#8696a0;font-size:12px">Logout</a> • <span onclick="toggleMap()" style="color:#00a884;cursor:pointer">📍 Map</span></div>
-</div>
-
-<div class="main">
-<div class="head"><div style="display:flex;align-items:center;gap:10px"><span onclick="showSidebar()" style="display:none" id="backBtn">←</span><div class="g-avatar" id="chatAvatar">P</div><div><div id="chatName" style="font-weight:600">Select group</div><div id="chatMembers" style="font-size:11px;color:#8696a0">0 members</div></div></div><div>⋮</div></div>
+<div class="top"><b>ZONDI - {{user}}</b><button onclick="openCreate()" style="background:#00a884;border:none;color:#fff;padding:7px 12px;border-radius:20px">+ Group</button></div>
+<div class="search"><input id="searchBox" placeholder="Search groups" onkeyup="doSearch()"></div>
 <div id="map"></div>
-<div class="chat-area" id="chatArea"><div style="text-align:center;color:#8696a0;margin-top:40px">Select a group to start chatting<br>🎙️ Voice + 💬 Text + 👥 Groups</div></div>
+<div class="list" id="groupList"></div>
+<div style="padding:10px;text-align:center;background:#111b21"><a href="/logout" style="color:#8696a0;font-size:12px">Logout</a> • <span onclick="toggleMap()" style="color:#00a884;cursor:pointer">📍 Map</span></div>
+
+<!-- CHAT PAGE LIKE WHATSAPP -->
+<div class="chat-wrap" id="chatPage">
+<div class="chat-head"><span onclick="closeChat()" style="font-size:22px;cursor:pointer">←</span><div class="av" id="cAv">K</div><div><div id="cName" style="font-weight:600">K9</div><div id="cSub" style="font-size:11px;color:#8696a0">1 members</div></div><div style="margin-left:auto">⋮</div></div>
+<div class="chat-area" id="chatArea"></div>
 <div class="input-bar">
-<button class="icon-btn" id="micBtn" onclick="toggleVoice()">🎙️</button>
-<input id="msgInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendText()">
-<button class="icon-btn" onclick="sendText()">➤</button>
+<span style="font-size:22px">😊</span>
+<input id="msgInput" placeholder="Message" onkeydown="if(event.key==='Enter')sendText()">
+<span style="font-size:20px">📎</span><span style="font-size:20px">📷</span>
+<button class="mic" id="micBtn" onclick="toggleVoice()">🎙️</button>
+<button class="mic" id="sendBtn" style="display:none;background:#00a884" onclick="sendText()">➤</button>
 </div>
 </div>
 
-<!-- CREATE GROUP MODAL -->
-<div id="createModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000a;z-index:10;align-items:center;justify-content:center"><div style="background:#202c33;padding:20px;border-radius:10px;width:300px"><h3>Create Group</h3><br><input id="newGId" placeholder="group id e.g. saps_k9" style="width:100%;padding:10px;border-radius:6px;border:none;background:#2a3942;color:#fff;margin-bottom:8px"><input id="newGName" placeholder="Group Name e.g. K9 Unit" style="width:100%;padding:10px;border-radius:6px;border:none;background:#2a3942;color:#fff;margin-bottom:12px"><button onclick="createGroup()" style="width:100%;padding:10px;background:#00a884;border:none;color:#fff;border-radius:6px">Create</button><button onclick="closeCreate()" style="width:100%;margin-top:6px;padding:8px;background:#333;border:none;color:#fff;border-radius:6px">Cancel</button></div></div>
+<div id="createModal" style="display:none;position:fixed;inset:0;background:#000a;z-index:20;align-items:center;justify-content:center"><div style="background:#202c33;padding:20px;border-radius:12px;width:300px"><h3>Create Group</h3><br><input id="newId" placeholder="id: k9_unit" style="width:100%;padding:10px;border-radius:6px;border:none;background:#2a3942;color:#fff;margin-bottom:8px"><input id="newName" placeholder="Name: K9 Unit" style="width:100%;padding:10px;border-radius:6px;border:none;background:#2a3942;color:#fff;margin-bottom:12px"><button onclick="createGroup()" style="width:100%;padding:10px;background:#00a884;border:none;color:#fff;border-radius:6px">Create</button><button onclick="document.getElementById('createModal').style.display='none'" style="width:100%;margin-top:6px;padding:8px;background:#333;border:none;color:#fff;border-radius:6px">Cancel</button></div></div>
 
 <script>
-const socket=io();
-let groups={}, currentGroup=null, isRec=false, recorder, chunks=[], recStart, timer;
-
+const socket=io(); let groups={}, cur=null, rec, chunks=[], isRec=false;
 function openCreate(){document.getElementById('createModal').style.display='flex'}
-function closeCreate(){document.getElementById('createModal').style.display='none'}
-async function createGroup(){
-let id=document.getElementById('newGId').value.trim().toLowerCase(); let name=document.getElementById('newGName').value.trim();
-if(!id||!name) return alert('fill both');
-let r=await fetch('/api/create_group',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,name})});
-let j=await r.json(); if(j.ok){groups=j.groups; renderGroups(); closeCreate();} else alert(j.error||'failed');
-}
-function filterGroups(){let q=document.getElementById('search').value.toLowerCase(); document.querySelectorAll('.g-item').forEach(el=>{el.style.display=el.innerText.toLowerCase().includes(q)?'flex':'none';});}
-function showSidebar(){document.getElementById('sidebar').classList.remove('hide'); document.getElementById('backBtn').style.display='none';}
-function hideSidebar(){if(window.innerWidth<=768){document.getElementById('sidebar').classList.add('hide'); document.getElementById('backBtn').style.display='block';}}
-
-async function loadGroups(){
-let r=await fetch('/api/groups'); groups=await r.json(); renderGroups();
-}
-function renderGroups(){
-let html=''; for(let gid in groups){let g=groups[gid]; let last=g.messages.length?g.messages[g.messages.length-1].text:'No messages yet';
-html+=`<div class="g-item ${currentGroup==gid?'active':''}" onclick="openGroup('${gid}')"><div class="g-avatar">${g.name[0]}</div><div class="g-info"><div class="g-name">${g.name}</div><div class="g-last">${last} • ${g.messages.length}</div></div></div>`;
-}
-document.getElementById('groupList').innerHTML=html;
-}
-async function openGroup(gid){
-currentGroup=gid; let g=groups[gid]; document.getElementById('chatName').innerText=g.name; document.getElementById('chatAvatar').innerText=g.name[0]; document.getElementById('chatMembers').innerText=g.members.length+' members';
-socket.emit('join_group',{group:gid}); renderMessages(); hideSidebar();
-}
-function renderMessages(){
-if(!currentGroup) return; let g=groups[currentGroup]; let area=document.getElementById('chatArea'); area.innerHTML='';
-g.messages.forEach(m=>{
-   let isMe=m.user==='{{user}}'; let cls=isMe?'bubble me':'bubble other';
-   let content=m.file?`<audio controls src="/evidence/${m.file}"></audio><div class="meta">${m.time} ${isMe?'✓✓':''}</div>`:`<div>${m.text}</div><div class="meta">${m.time} ${isMe?'✓✓':''} • ${m.user}</div>`;
-   let d=document.createElement('div'); d.className=cls; d.innerHTML=content; area.appendChild(d);
-});
-area.scrollTop=area.scrollHeight;
-}
-async function sendText(){
-let txt=document.getElementById('msgInput').value.trim(); if(!txt||!currentGroup) return;
-document.getElementById('msgInput').value='';
-await fetch('/api/send_text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({group:currentGroup,text:txt})});
-}
-async function toggleVoice(){
-let btn=document.getElementById('micBtn');
-if(!isRec){
-   try{
-     let stream=await navigator.mediaDevices.getUserMedia({audio:true});
-     chunks=[]; recorder=new MediaRecorder(stream,{mimeType:'audio/webm'}); recorder.ondataavailable=e=>{if(e.data.size>0) chunks.push(e.data)};
-     recorder.onstop=async()=>{
-       let blob=new Blob(chunks,{type:'audio/webm'}); if(blob.size<800){alert('Too short');return;}
-       let fd=new FormData(); fd.append('voice',blob,'voice.webm'); fd.append('group',currentGroup);
-       await fetch('/api/send_voice',{method:'POST',body:fd});
-     };
-     recorder.start(); isRec=true; btn.classList.add('rec'); btn.innerText='◼';
-   }catch(e){alert(e.message);}
-}else{
-   recorder.stop(); recorder.stream.getTracks().forEach(t=>t.stop()); isRec=false; btn.classList.remove('rec'); btn.innerText='🎙️';
-}
-}
-socket.on('new_msg', data=>{
-if(groups[data.group]){groups[data.group].messages.push(data.msg); renderGroups(); if(currentGroup==data.group) renderMessages();}
-});
-socket.on('groups_updated', g=>{groups=g; renderGroups();});
-
-// MAP
-let map, markers={}; let mapVisible=false;
-function toggleMap(){
-let m=document.getElementById('map'); mapVisible=!mapVisible; m.style.display=mapVisible?'block':'none';
-if(mapVisible &&!map){map=L.map('map').setView([-28.78,31.44],10); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);}
-}
-socket.on('location_update', d=>{
-if(!map) return; let loc=d.location||d; let u=d.user||loc.user; if(!loc.lat) return;
-if(!markers[u]) markers[u]=L.marker([loc.lat,loc.lng]).addTo(map).bindPopup(u); else markers[u].setLatLng([loc.lat,loc.lng]);
-});
-
-loadGroups();
+function doSearch(){let q=document.getElementById('searchBox').value.toLowerCase(); document.querySelectorAll('.item').forEach(e=>{e.style.display=e.innerText.toLowerCase().includes(q)?'flex':'none'})}
+function toggleMap(){let m=document.getElementById('map'); let s=m.style.display=='block'; m.style.display=s?'none':'block'; if(!s&&!window.map){window.map=L.map('map').setView([-25.7,28.1],9); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.map);}}
+async function load(){let r=await fetch('/api/groups'); groups=await r.json(); render()}
+function render(){let h=''; for(let id in groups){let g=groups[id]; let last=g.messages.length?g.messages[g.messages.length-1].text:'No messages yet'; h+=`<div class="item" onclick="openChat('${id}')"><div class="av">${g.name[0].toUpperCase()}</div><div style="flex:1"><div style="display:flex;justify-content:space-between"><b>${g.name}</b><span style="font-size:11px;color:#8696a0">${g.messages.length?g.messages[g.messages.length-1].time:''}</span></div><div style="font-size:12px;color:#8696a0">${last} • ${g.messages.length}</div></div></div>`;} document.getElementById('groupList').innerHTML=h;}
+function openChat(id){cur=id; let g=groups[id]; document.getElementById('cName').innerText=g.name; document.getElementById('cAv').innerText=g.name[0].toUpperCase(); document.getElementById('cSub').innerText=g.members.length+' members'; document.getElementById('chatPage').classList.add('open'); socket.emit('join_group',{group:id}); fetch('/api/group_messages/'+id).then(r=>r.json()).then(msgs=>{groups[id].messages=msgs; renderChat();}); renderChat();}
+function closeChat(){document.getElementById('chatPage').classList.remove('open'); cur=null}
+function renderChat(){if(!cur) return; let g=groups[cur]; let area=document.getElementById('chatArea'); area.innerHTML=''; if(g.messages.length==0){area.innerHTML='<div style="text-align:center;color:#667781;margin-top:40px;font-size:13px;background:#fff;padding:8px;border-radius:8px;align-self:center">🔒 Messages are end-to-end encrypted. Tap to chat.</div>'; return;} g.messages.forEach(m=>{let me=m.user==='{{user}}'; let d=document.createElement('div'); d.className='bub '+(me?'me':'other'); if(m.file){d.innerHTML=`<div style="font-size:11px;color:#00a884;font-weight:bold">${m.user}</div><audio controls src="/evidence/${m.file}" style="width:220px"></audio><div class="meta">${m.time} ✓✓</div>`;} else {d.innerHTML=`${me?'':`<div style="font-size:11px;color:#00a884;font-weight:bold">${m.user}</div>`}<div>${m.text}</div><div class="meta">${m.time} ${me?'✓✓':''}</div>`;} area.appendChild(d);}); area.scrollTop=area.scrollHeight;}
+async function createGroup(){let id=document.getElementById('newId').value.trim().toLowerCase().replace(/ /g,'_'), name=document.getElementById('newName').value.trim(); if(!id||!name) return alert('fill'); let r=await fetch('/api/create_group',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,name})}); let j=await r.json(); if(j.ok){groups=j.groups; render(); document.getElementById('createModal').style.display='none';} else alert(j.error);}
+async function sendText(){let t=document.getElementById('msgInput').value.trim(); if(!t||!cur) return; document.getElementById('msgInput').value=''; await fetch('/api/send_text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({group:cur,text:t})});}
+async function toggleVoice(){let btn=document.getElementById('micBtn'); if(!isRec){try{let s=await navigator.mediaDevices.getUserMedia({audio:true}); chunks=[]; rec=new MediaRecorder(s,{mimeType:'audio/webm'}); rec.ondataavailable=e=>{if(e.data.size>0) chunks.push(e.data)}; rec.onstop=async()=>{let blob=new Blob(chunks,{type:'audio/webm'}); if(blob.size<800){return;} let fd=new FormData(); fd.append('voice',blob,'v.webm'); fd.append('group',cur); await fetch('/api/send_voice',{method:'POST',body:fd});}; rec.start(); isRec=true; btn.classList.add('rec'); btn.innerText='◼';}catch(e){alert(e.message)}} else {rec.stop(); rec.stream.getTracks().forEach(t=>t.stop()); isRec=false; btn.classList.remove('rec'); btn.innerText='🎙️';}}
+// show send btn when typing
+document.getElementById('msgInput').addEventListener('input', e=>{let has=e.target.value.trim().length>0; document.getElementById('sendBtn').style.display=has?'block':'none'; document.getElementById('micBtn').style.display=has?'none':'block';});
+socket.on('new_msg', d=>{if(groups[d.group]){groups[d.group].messages.push(d.msg); render(); if(cur==d.group) renderChat();}});
+socket.on('groups_updated', g=>{groups=g; render();});
+load();
 </script></body></html>
