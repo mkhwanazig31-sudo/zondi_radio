@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os, json, time
 from werkzeug.utils import secure_filename
+from google_sheets import append_patrol_log
 
 app = Flask(__name__)
 app.secret_key = "ZONDI_SUPER_SECRET_2026"
@@ -154,6 +155,12 @@ def update_location():
         "role": "client"
     }
     socketio.emit('location_update', {'user': user, 'location': locations[user]}, broadcast=True)
+    # Sync patrol log to Google Sheets (non-blocking)
+    try:
+        import eventlet
+        eventlet.spawn(append_patrol_log, user, locations[user]['lat'], locations[user]['lng'], locations[user]['time'], session.get('role', 'client'))
+    except Exception:
+        pass
     return jsonify({"ok": True})
 
 @app.route('/trigger_panic', methods=['POST'])
