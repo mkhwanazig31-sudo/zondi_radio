@@ -305,4 +305,4 @@ if __name__ == '__main__':
     print("   - CLIENT PORTAL: /dashboard (role=client)")
     print("   - HQ PORTAL: /dashboard (role=patrol)")
     print("   - DEV PORTAL: /dev (password: zondi@123)")
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True, allow_unsafe_werkzeug=True)
